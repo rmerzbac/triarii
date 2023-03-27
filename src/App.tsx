@@ -1,7 +1,7 @@
 import './App.css';
 import React, { FC } from "react";
-import { useState, useEffect } from 'react';
-import cloneDeep from "lodash";
+import { useState, useEffect, useCallback } from 'react';
+import _ from 'lodash';
 
 let selected: number[] | null;
 
@@ -72,6 +72,16 @@ function makeCode(square: any) : string | null {
 function addStack(stacker: string, stackee: string, whiteMoving: boolean): string | null {
   let stackerCode = parseCode(stacker);
   let stackeeCode = parseCode(stackee);
+
+  if (
+    (whiteMoving && stackerCode[2] === -1) ||
+    (!whiteMoving && stackerCode[2] === 1) ||
+    (whiteMoving && stackerCode[0] === 0) ||
+    (!whiteMoving && stackerCode[1] === 0)
+  ) {
+    throw new Error("Invalid move");
+  }
+
   let pin = 0;
   if (whiteMoving) {
     stackeeCode[0] += stackerCode[0];
@@ -82,7 +92,8 @@ function addStack(stacker: string, stackee: string, whiteMoving: boolean): strin
   }
   stackeeCode[2] = pin;
   return makeCode(stackeeCode);
-};
+}
+
 
 function createGrid(): JSX.Element[] {
   let table: JSX.Element[] = [];
@@ -148,77 +159,101 @@ interface State {
 
 const Game = () => {
   const [history, setHistory] = useState([
-    { board: [
-      [null, "6b", null, "6b", null, "6b"],
-      ["4b", null, "4b", null, "4b", null],
-      [null, "2b", null, "2b", null, "2b"],
-      ["2w", null, "2w", null, "2w", null],
-      [null, "4w", null, "4w", null, "4w"],
-      ["6w", null, "6w", null, "6w", null]
-      ]}
-    ]);
-  console.log(history);
+    {
+      board: [
+        [null, '6b', null, '6b', null, '6b'],
+        ['4b', null, '4b', null, '4b', null],
+        [null, '2b', null, '2b', null, '2b'],
+        ['2w', null, '2w', null, '2w', null],
+        [null, '4w', null, '4w', null, '4w'],
+        ['6w', null, '6w', null, '6w', null],
+      ],
+    },
+  ]);
+
+  const [currentBoard, setCurrentBoard] = useState(history[history.length - 1].board);
   const [whiteToPlay, setWhiteToPlay] = useState(true);
-  
+
   useEffect(() => {
-    console.log("listener added")
-    document.addEventListener('keyup', event => {
-      event.preventDefault();
-      if (event.code === 'ArrowUp') {
-        move("u");
-      } else if (event.code === 'ArrowRight') {
-        move("r");
-      } else if (event.code === 'ArrowDown') {
-        move("d");
-      } else if (event.code === 'ArrowLeft') {
-        move("l");
+    setCurrentBoard(history[history.length - 1].board);
+  }, [history]);
+
+  useEffect(() => {
+    console.log('Updated history:', history);
+  }, [history]);
+
+  const move = useCallback(
+    (dir: string) => {
+      const nextBoard = _.cloneDeep(currentBoard);
+
+      if (selected === null) return;
+      const row = selected[0];
+      const col = selected[1];
+      const stack = nextBoard[row][col];
+      if (stack === null) return;
+
+      nextBoard[row][col] = null;
+      if (dir === "u") {
+        nextBoard[row - 1][col] = addStack(stack, nextBoard[row - 1][col]!, whiteToPlay);
+        select(row - 1, col);
       }
-    });
-  }, []);
+      if (dir === "l") {
+        nextBoard[row][col - 1] = addStack(stack, nextBoard[row][col - 1]!, whiteToPlay);
+        select(row, col - 1);
+      }
+      if (dir === "d") {
+        nextBoard[row + 1][col] = addStack(stack, nextBoard[row + 1][col]!, whiteToPlay);
+        select(row + 1, col);
+      }
+      if (dir === "r") {
+        nextBoard[row][col + 1] = addStack(stack, nextBoard[row][col + 1]!, whiteToPlay);
+        select(row, col + 1);
+      }
 
-  const move = (dir: string) => {
-    const _ = require('lodash');
-    const board = history[history.length - 1].board;
-    const nextBoard = _.cloneDeep(board);
-    if (selected === null) return;
-    const row = selected[0];
-    const col = selected[1];
-    const stack = nextBoard[row][col];
+      setHistory((prevHistory) => [...prevHistory, { board: nextBoard }]);
+      console.log('After update (new history will be logged by useEffect):', history);
+      setWhiteToPlay(!whiteToPlay);
+    },
+    [currentBoard, history, whiteToPlay]
+  );
 
-    nextBoard[row][col] = null;
-    if (dir === "u") {
-      nextBoard[row-1][col] = addStack(stack, nextBoard[row-1][col], true);
-      select(row-1, col);
+
+  const handleKeyUp = (event: KeyboardEvent) => {
+    event.preventDefault();
+    if (event.code === 'ArrowUp') {
+      move('u');
+    } else if (event.code === 'ArrowRight') {
+      move('r');
+    } else if (event.code === 'ArrowDown') {
+      move('d');
+    } else if (event.code === 'ArrowLeft') {
+      move('l');
     }
-    if (dir === "l") {
-      nextBoard[row][col-1] = addStack(stack, nextBoard[row][col-1], true);
-      select(row, col-1);
-    }
-    if (dir === "d") {
-      nextBoard[row+1][col] = addStack(stack, nextBoard[row+1][col], true);
-      select(row+1, col);
-    }
-    if (dir === "r") {
-      nextBoard[row][col+1] = addStack(stack, nextBoard[row][col+1], true);
-      select(row, col+1);
-    }
-    setHistory([...history, {board: nextBoard}]);
-    setWhiteToPlay(!whiteToPlay);
-  }
-  
+  };
+
+  useEffect(() => {
+    console.log('listener added');
+    document.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      // Clean up the listener when the component is unmounted
+      document.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [move]);
+
+  // ...
+
   return (
     <div className="boardDiv">
-    <div>
-    <Board
-    board={history[history.length-1].board}
-          //onClick={i => this.handleClick(i)}
-    />
-
+      <div>
+        <Board
+          board={history[history.length - 1].board}
+          // onClick={i => this.handleClick(i)}
+        />
+      </div>
     </div>
-    </div>
-    );
-
-}
+  );
+};
 
 const App: React.FC = () => {
   return (
