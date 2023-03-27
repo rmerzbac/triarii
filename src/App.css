@@ -1,0 +1,39 @@
+body {
+  background: #8d7424;
+}
+.boardDiv {
+  display: flex;
+    align-items: center;
+    justify-content: center;
+}
+table {
+  border: 1px solid black;
+}
+td {
+  margin: 0px;
+  padding: 0px;
+  margin: auto;
+}
+td.selected {
+  background: #8d7424 !important;
+  opacity: 1;
+}
+.square {
+  width: 10vh;
+  height: 10vh;
+  border: 1px solid black;
+  margin: auto;
+  text-align: center;
+}
+.endzone {
+  height: 10vh;
+  border: 1px solid black;
+}
+.grid {
+  z-index: 1;
+  position: absolute;
+}
+.grid td:hover{
+  background: #8d7424 !important;
+  opacity: .6;
+}
