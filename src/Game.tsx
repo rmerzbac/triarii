@@ -48,7 +48,6 @@ const Game = () => {
       const stack = nextBoard[row][col];
       if (stack === null) return;
 
-      nextBoard[row][col] = null;
       let nextRow = row;
       let nextCol = col;
       if (dir === "u") {
