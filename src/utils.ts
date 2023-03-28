@@ -8,19 +8,19 @@ interface SquareStatus {
   pinStatus: number;
 }
 
-export function parseCode(code: string) : number[] {
-  if (code === null) return [0, 0, NO_PIN];
+export function parseCode(code: string) : SquareStatus {
+  if (code === null) return {numWhitePieces: 0, numBlackPieces: 0, pinStatus: NO_PIN};
   const pIndex = code.indexOf('P'); 
 
   function isWhite(index: number) {
     return code.charAt(index) === 'w';
   }
 
-  function stackSizeToInt(startIndex: number, endIndex: number) {
+  function stackSizeToInt(startIndex: number, endIndex: number) : number {
     return parseInt(code.substring(startIndex, endIndex));
   }
 
-  function getStackSize(isPinning: boolean) {
+  function getStackSize(isPinning: boolean) : number {
     return isPinning ? stackSizeToInt(0, pIndex - 1) : stackSizeToInt(pIndex + 1, code.length - 2);
   }
 
@@ -28,49 +28,77 @@ export function parseCode(code: string) : number[] {
   if (isStackPinned) {
     const count = stackSizeToInt(0, code.length - 1);
     // check if stack is white or black and then return the stack sizes and pin status (NO_PIN)
-    return isWhite(code.length - 1) ? [count, 0, NO_PIN] : [0, count, NO_PIN];
+    return isWhite(code.length - 1) ? 
+      { numWhitePieces: count, 
+      numBlackPieces: 0, 
+      pinStatus: NO_PIN } : 
+      { numWhitePieces: 0, 
+      numBlackPieces: count, 
+      pinStatus: NO_PIN };
   } else {
     const pIndex = code.indexOf('P');
     const isWhitePinning = isWhite(pIndex - 1);
     const whitePieces = getStackSize(isWhitePinning);
     const blackPieces = getStackSize(!isWhitePinning);
-    return [whitePieces, blackPieces, isWhitePinning ? WHITE_PINNING : BLACK_PINNING];
+    const pinStatus = isWhitePinning ? WHITE_PINNING : BLACK_PINNING; 
+    return {
+      numWhitePieces : whitePieces, 
+      numBlackPieces : blackPieces,
+      pinStatus : pinStatus
+    };
   }
 };
 
-export function makeCode(square: [number, number, number]) : string | null {
-  const [numWhite, numBlack, pinStatus] = square;
-  if (numWhite === 0 && numBlack === 0) return null;
-  if (pinStatus === NO_PIN) {
-    const isStackWhite = numWhite !== 0;
-    return isStackWhite ? numWhite + "w" : numBlack + "b";
+export function makeCode(square: SquareStatus) : string | null {
+  if (square.numWhitePieces === 0 && square.numBlackPieces === 0) return null;
+  if (square.pinStatus === NO_PIN) {
+    const isStackWhite = square.numWhitePieces !== 0;
+    return isStackWhite ? square.numWhitePieces + "w" : square.numBlackPieces + "b";
   } else {
-    const isWhitePinning = pinStatus === WHITE_PINNING;
+    const isWhitePinning = square.pinStatus === WHITE_PINNING;
     // return stack code with pinning format (<pinning stack>P<pinned stack>)
-    return  isWhitePinning ? numWhite + "wP" + numBlack + "b" : numBlack + "bP" + numWhite + "w";
+    return  isWhitePinning ? 
+      square.numWhitePieces + "wP" + square.numBlackPieces + "b" : 
+      square.numBlackPieces + "bP" + square.numWhitePieces + "w";
   }
 };
 
-export function addStack(stacker: string, stackee: string, whiteMoving: boolean): string | null {
-  let [whiteStacker, blackStacker, stackerPinStatus] = parseCode(stacker);
-  let [whiteStackee, blackStackee, stackeePinStatus] = parseCode(stackee);
-
+export function makeMove(movingStackSize: number, stackerCode: string, stackeeCode: string, isWhiteMoving: boolean): [string | null, string | null] {
+  let stacker = parseCode(stackerCode);
   if (
-    (whiteMoving && stackerPinStatus === BLACK_PINNING) ||
-    (!whiteMoving && stackerPinStatus === WHITE_PINNING) ||
-    (whiteMoving && whiteStacker === 0) ||
-    (!whiteMoving && blackStacker === 0)
+    (isWhiteMoving && stacker.pinStatus === BLACK_PINNING) ||
+    (!isWhiteMoving && stacker.pinStatus === WHITE_PINNING) ||
+    (isWhiteMoving && stacker.numWhitePieces === 0) ||
+    (!isWhiteMoving && stacker.numBlackPieces === 0)
   ) {
     throw new Error("Invalid move");
   }
-
-  let pinStatus;
-  if (whiteMoving) {
-    whiteStackee += whiteStacker;
-    pinStatus = blackStackee ? WHITE_PINNING : NO_PIN;
-  } else {
-    blackStackee += blackStacker;
-    pinStatus = whiteStackee ? BLACK_PINNING : NO_PIN;
-  }
-  return makeCode([whiteStackee, blackStackee, pinStatus]);
+  return [addStack(movingStackSize, stackeeCode, isWhiteMoving), removeStack(movingStackSize, stacker, isWhiteMoving)];
 };
+
+function addStack(stackerSize: number, stackeeCode: string, whiteMoving: boolean): string | null {
+  let stackee = parseCode(stackeeCode);
+
+  let newStack = {numWhitePieces: 0, numBlackPieces: 0, pinStatus: NO_PIN};
+  if (whiteMoving) {
+    newStack.numWhitePieces = stackee.numWhitePieces + stackerSize;
+    newStack.pinStatus = stackee.numBlackPieces ? WHITE_PINNING : NO_PIN;
+  } else {
+    newStack.numBlackPieces = stackee.numBlackPieces + stackerSize;
+    newStack.pinStatus = stackee.numWhitePieces ? BLACK_PINNING : NO_PIN;
+  }
+  return makeCode(newStack);
+};
+
+function subtractPieces(stackSize: number, removedPieces: number) : number{
+  let newStackSize = stackSize - removedPieces;
+  return newStackSize < 0 ? 0 : newStackSize;
+}
+
+function removeStack(numMovingPieces: number, stack: SquareStatus, isWhiteMoving: boolean) : string | null {
+  const newStackSize = subtractPieces(isWhiteMoving ? stack.numWhitePieces : stack.numBlackPieces, numMovingPieces);
+  const whitePieces = isWhiteMoving ? newStackSize : stack.numWhitePieces;
+  const blackPieces = isWhiteMoving ? stack.numBlackPieces : newStackSize;
+  const pinStatus = newStackSize === 0 ? NO_PIN : stack.pinStatus;
+  return makeCode({numWhitePieces: whitePieces, numBlackPieces: blackPieces, pinStatus: pinStatus});
+}

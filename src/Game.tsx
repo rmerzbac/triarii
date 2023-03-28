@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import _ from 'lodash';
 import Board from './Board';
-import {addStack} from './utils';
+import {makeMove} from './utils';
 
 let selected: number[] | null;
 
@@ -49,22 +49,26 @@ const Game = () => {
       if (stack === null) return;
 
       nextBoard[row][col] = null;
+      let nextRow = row;
+      let nextCol = col;
       if (dir === "u") {
-        nextBoard[row - 1][col] = addStack(stack, nextBoard[row - 1][col]!, whiteToPlay);
-        select(row - 1, col);
+        nextRow -= 1;
       }
       if (dir === "l") {
-        nextBoard[row][col - 1] = addStack(stack, nextBoard[row][col - 1]!, whiteToPlay);
-        select(row, col - 1);
+        nextCol -= 1;
       }
       if (dir === "d") {
-        nextBoard[row + 1][col] = addStack(stack, nextBoard[row + 1][col]!, whiteToPlay);
-        select(row + 1, col);
+        nextRow += 1;
       }
       if (dir === "r") {
-        nextBoard[row][col + 1] = addStack(stack, nextBoard[row][col + 1]!, whiteToPlay);
-        select(row, col + 1);
+        nextCol += 1;
       }
+
+      // TODO: ADD REAL STACK SIZES
+      [nextBoard[nextRow][nextCol], nextBoard[row][col]] = makeMove(12, nextBoard[row][col]!, nextBoard[nextRow][nextCol]!, whiteToPlay);
+      select(nextRow, nextCol);
+
+
 
       setHistory((prevHistory) => [...prevHistory, { board: nextBoard }]);
       console.log('After update (new history will be logged by useEffect):', history);
