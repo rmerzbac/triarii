@@ -1,11 +1,48 @@
 import React, { useState, useEffect, useCallback, useRef, ChangeEventHandler} from 'react';
 import _ from 'lodash';
 import Board from './Board';
-import {makeMove, MakeMoveResponse, convertBoardToString, isViolatingFourOrFewerCondition} from './gameLogic';
+import {makeMove, GameInterface, convertBoardToString, convertStringToBoard, isViolatingFourOrFewerCondition} from './gameLogic';
 import { BOARD_SIZE, DEFAULT_PIECES_REMAINING } from './constants';
 
 
-const Game = () => {
+
+const Game = ({gameId} : any) => {
+  async function loadGameState(gameId : string) {
+    try {
+      const response = await fetch(`http://localhost:3001/game/${gameId}`);
+      const { boardCode } = await response.json();
+      console.log(boardCode);
+      const game = convertStringToBoard(boardCode);
+      setHistory((prevHistory) => [game]);
+    } catch (error) {
+      console.error('Error loading game state:', error);
+    }
+  }
+  
+  async function updateGameState(gameId : string, boardCode : string) {
+    try {
+      await fetch(`http://localhost:3001/game/${gameId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ boardCode }),
+      });
+    } catch (error) {
+      console.error('Error updating game state:', error);
+    }
+  }
+
+  useEffect(() => {
+    const fetchGameState = async () => {
+      await loadGameState(gameId);
+    };
+  
+    if (gameId) {
+      fetchGameState();
+    }
+  }, [gameId]);  
+
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [history, setHistory] = useState([
@@ -126,6 +163,7 @@ const Game = () => {
   const move = useCallback(
     (movingStackSize: number, dir: string) => {
       try {
+        setErrorMessage(null);
         if (movingStackSize < 1) throw new Error("You must move at least one piece. Press space to end your turn.");
         if (selected === null) return;
         const row = selected[0];
@@ -180,13 +218,6 @@ const Game = () => {
           endGame(true);
         if (endzoneBlack >= 6)
           endGame(false);
-        
-        const stringifiedBoard = convertBoardToString({board: nextBoard, whiteInEndzone: endzoneWhite, blackInEndzone: endzoneBlack});
-
-        updateDictionary(stringifiedBoard, (newBoardDictionary) => {
-          if (newBoardDictionary[stringifiedBoard] >= 3) endGame(null); // Threefold repetition
-          console.log(newBoardDictionary);
-        });
 
         if (isViolatingFourOrFewerCondition(nextBoard, true)) {
           endGame(false);
@@ -196,12 +227,20 @@ const Game = () => {
         }
 
         setHistory((prevHistory) => [...prevHistory, { board: nextBoard, whiteInEndzone: endzoneWhite, blackInEndzone: endzoneBlack}]);
-        if (isTurnOver || movingStackSize - makeMoveResponse.piecesUsedInMove <= 1 || nextRow === BOARD_SIZE || nextRow === -1) {
+        if (isTurnOver || movingStackSize - makeMoveResponse.piecesUsedInMove < 1 || nextRow === BOARD_SIZE || nextRow === -1) {
           endTurn();
         } else {
           setPiecesRemaining(movingStackSize - makeMoveResponse.piecesUsedInMove);
           setIsFirstAction(false);
         }
+
+        const stringifiedBoard = convertBoardToString({board: nextBoard, whiteInEndzone: endzoneWhite, blackInEndzone: endzoneBlack, isWhite: isWhiteMoving, piecesRemaining: piecesRemaining, isFirstAction: isFirstAction});
+
+        updateDictionary(stringifiedBoard, (newBoardDictionary) => {
+          if (newBoardDictionary[stringifiedBoard] >= 3) endGame(null); // Threefold repetition
+          console.log(newBoardDictionary);
+        });
+
       } catch (e : any) {
         console.error(e);
         setErrorMessage(e.message);
