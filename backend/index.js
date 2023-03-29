@@ -20,7 +20,7 @@ app.post('/game', async (req, res) => {
   const id = uuidv4();
 
   try {
-    await knex('games').insert({ id, boardCode });
+    await knex('games').insert({ id, boardCode, selected });
     res.status(201).json({ id });
   } catch (err) {
     res.status(500).json({ error: 'Error creating a new game' });

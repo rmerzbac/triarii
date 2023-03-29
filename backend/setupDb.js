@@ -5,6 +5,7 @@ async function setupDb() {
   await knex.schema.createTable('games', (table) => {
     table.string('id').primary();
     table.text('boardCode');
+    table.text('selected');
   });
 
   console.log('Database setup complete');

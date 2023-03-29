@@ -7,7 +7,7 @@ import { BOARD_SIZE, DEFAULT_PIECES_REMAINING } from './constants';
 
 
 const Game = ({gameId} : any) => {
-  async function loadGameState(gameId : string) {
+  async function loadGameState() {
     try {
       const response = await fetch(`http://localhost:3001/game/${gameId}`);
       const { boardCode } = await response.json();
@@ -19,14 +19,14 @@ const Game = ({gameId} : any) => {
     }
   }
   
-  async function updateGameState(gameId : string, boardCode : string) {
+  async function updateGameState(boardCode : string, selected : string | null) {
     try {
       await fetch(`http://localhost:3001/game/${gameId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ boardCode }),
+        body: JSON.stringify({ boardCode, selected}),
       });
     } catch (error) {
       console.error('Error updating game state:', error);
@@ -35,7 +35,7 @@ const Game = ({gameId} : any) => {
 
   useEffect(() => {
     const fetchGameState = async () => {
-      await loadGameState(gameId);
+      await loadGameState();
     };
   
     if (gameId) {
@@ -57,6 +57,9 @@ const Game = ({gameId} : any) => {
       ],
       whiteInEndzone: 0,
       blackInEndzone: 0,
+      isWhiteMoving: true,
+      piecesRemaining: 1000,
+      isFirstAction: true
     },
   ]);
 
@@ -87,6 +90,9 @@ const Game = ({gameId} : any) => {
     setCurrentBoard(history[history.length - 1].board);
     setCurrentWhiteInEndzone(history[history.length - 1].whiteInEndzone);
     setCurrentBlackInEndzone(history[history.length - 1].blackInEndzone);
+    setIsWhiteMoving(history[history.length - 1].isWhiteMoving);
+    setPiecesRemaining(history[history.length - 1].piecesRemaining);
+    setIsFirstAction(history[history.length - 1].isFirstAction);
   }, [history]);
 
   useEffect(() => {
@@ -143,10 +149,10 @@ const Game = ({gameId} : any) => {
     }
   };
 
-  const endTurn = () => {
-    setIsWhiteMoving(!isWhiteMoving);
-    setPiecesRemaining(1000);
-    setIsFirstAction(true);
+  const endTurn = (gameState : GameInterface) => {
+    gameState.isWhiteMoving = !isWhiteMoving;
+    gameState.piecesRemaining = 1000;
+    gameState.isFirstAction = true;
     select(-1, -1, false);
   }
 
@@ -214,6 +220,13 @@ const Game = ({gameId} : any) => {
         const isTurnOver = makeMoveResponse.isTurnOver;
         select(nextRow, nextCol, false);
 
+        let nextGameState : GameInterface = {board: nextBoard,
+          whiteInEndzone: endzoneWhite,
+          blackInEndzone: endzoneBlack,
+          isWhiteMoving,
+          piecesRemaining,
+          isFirstAction};
+
         if (endzoneWhite >= 6)
           endGame(true);
         if (endzoneBlack >= 6)
@@ -226,20 +239,23 @@ const Game = ({gameId} : any) => {
           endGame(true);
         }
 
-        setHistory((prevHistory) => [...prevHistory, { board: nextBoard, whiteInEndzone: endzoneWhite, blackInEndzone: endzoneBlack}]);
         if (isTurnOver || movingStackSize - makeMoveResponse.piecesUsedInMove < 1 || nextRow === BOARD_SIZE || nextRow === -1) {
-          endTurn();
+          endTurn(nextGameState);
         } else {
-          setPiecesRemaining(movingStackSize - makeMoveResponse.piecesUsedInMove);
-          setIsFirstAction(false);
+          nextGameState.piecesRemaining = movingStackSize - makeMoveResponse.piecesUsedInMove;
+          nextGameState.isFirstAction = false;
         }
 
-        const stringifiedBoard = convertBoardToString({board: nextBoard, whiteInEndzone: endzoneWhite, blackInEndzone: endzoneBlack, isWhite: isWhiteMoving, piecesRemaining: piecesRemaining, isFirstAction: isFirstAction});
+        setHistory((prevHistory) => [...prevHistory, nextGameState]);
+        const stringifiedBoard = convertBoardToString(nextGameState);
 
         updateDictionary(stringifiedBoard, (newBoardDictionary) => {
           if (newBoardDictionary[stringifiedBoard] >= 3) endGame(null); // Threefold repetition
-          console.log(newBoardDictionary);
         });
+
+        console.log(stringifiedBoard);
+
+        updateGameState(stringifiedBoard, selected[0] + "," + selected[1]);
 
       } catch (e : any) {
         console.error(e);
@@ -270,7 +286,7 @@ const Game = ({gameId} : any) => {
     if (event.code === 'Space') {
       event.preventDefault();
       if (piecesRemaining === DEFAULT_PIECES_REMAINING) throw new Error("No move made.");
-      endTurn();
+      //endTurn();
       return;
     }
 

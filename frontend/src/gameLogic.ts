@@ -17,7 +17,7 @@ export interface GameInterface {
   board: (string | null)[][],
   whiteInEndzone: number,
   blackInEndzone: number,
-  isWhite: boolean,
+  isWhiteMoving: boolean,
   piecesRemaining: number,
   isFirstAction: boolean
 }
@@ -31,9 +31,9 @@ export function convertBoardToString(boardState: GameInterface): string {
     }
     str += "/";
   }
-  str += boardState.whiteInEndzone + "," + boardState.blackInEndzone;
-  str += boardState.isWhite + ",";
-  str += (boardState.piecesRemaining === DEFAULT_PIECES_REMAINING ? "MAX" : boardState.piecesRemaining) + ",";
+  str += boardState.whiteInEndzone + "," + boardState.blackInEndzone + ",";
+  str += boardState.isWhiteMoving + ",";
+  str += boardState.piecesRemaining + ",";
   str += boardState.isFirstAction + "//";
 
   console.log(str);
@@ -46,7 +46,6 @@ function parseBoolean(value: string): boolean {
 
 export function convertStringToBoard(code: string): GameInterface {
   const split = code.split("//");
-  console.log(split);
   let board = [];
   for (let i = 1; i <= BOARD_SIZE; i++) {
     let squares : (string | null)[] = split[i].split("/");
@@ -56,12 +55,12 @@ export function convertStringToBoard(code: string): GameInterface {
     board.push(squares);
   }
   console.log(board);
-  const [whiteInEndzone, blackInEndzone, isWhite, piecesRemaining, isFirstAction] = split[BOARD_SIZE+1].split(",");
+  const [whiteInEndzone, blackInEndzone, isWhiteMoving, piecesRemaining, isFirstAction] = split[BOARD_SIZE+1].split(",");
   return {
     board,
     whiteInEndzone: parseInt(whiteInEndzone, 10),
     blackInEndzone: parseInt(blackInEndzone, 10),
-    isWhite: parseBoolean(isWhite),
+    isWhiteMoving: parseBoolean(isWhiteMoving),
     piecesRemaining: parseInt(piecesRemaining, 10),
     isFirstAction: parseBoolean(isFirstAction),
   };
