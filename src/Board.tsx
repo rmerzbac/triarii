@@ -5,10 +5,10 @@ import Endzone from "./Endzone";
 
 interface BoardProps {
   board: any;
-  onSelect: (row: number, col: number) => void;
+  onSelect: (row: number, col: number, isClick: boolean) => void;
 }
 
-function createGrid(onSelect: (row: number, col: number) => void): JSX.Element[] {
+function createGrid(onSelect: (row: number, col: number, isClick: boolean) => void): JSX.Element[] {
   let table: JSX.Element[] = [];
   table.push(<tr><td colSpan={6} className="endzone"></td></tr>);
   // Outer loop to create parent
@@ -16,7 +16,7 @@ function createGrid(onSelect: (row: number, col: number) => void): JSX.Element[]
     let children: JSX.Element[] = [];
     // Inner loop to create children
     for (let j = 0; j < 6; j++) {
-      children.push(<td id={("g" + i + "," + j)} onClick={() => onSelect(i, j)} className="square"></td>);
+      children.push(<td id={("g" + i + "," + j)} onClick={() => onSelect(i, j, true)} className="square"></td>);
     }
     // Create the parent and add the children
     table.push(<tr>{children}</tr>);
@@ -25,9 +25,9 @@ function createGrid(onSelect: (row: number, col: number) => void): JSX.Element[]
   return table;
 }
 
-function createBoard(board: any, onSelect: (row: number, col: number) => void) {
+function createBoard(board: any, onSelect: (row: number, col: number, isClick: boolean) => void) {
   let table = [];
-  table.push(<tr>{<Endzone color={"white"} />}</tr>);
+  table.push(<tr>{<Endzone color={"black"} />}</tr>);
   // Outer loop to create parent
   for (let i = 0; i < 6; i++) {
     let children = [];
@@ -48,7 +48,7 @@ function createBoard(board: any, onSelect: (row: number, col: number) => void) {
     // Create the parent and add the children
     table.push(<tr>{children}</tr>);
   }
-  table.push(<tr>{<Endzone color={"black"} />}</tr>);
+  table.push(<tr>{<Endzone color={"white"} />}</tr>);
   return table;
 }
 

@@ -1,10 +1,10 @@
 body {
-  background: #8d7424;
+  background: #FAF0F0;
 }
 .boardDiv {
   display: flex;
-    align-items: center;
-    justify-content: center;
+  align-items: center;
+  justify-content: center;
 }
 input {
   z-index: 32;
@@ -28,12 +28,25 @@ td.selected {
   margin: auto;
   text-align: center;
 }
+.square-contents {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.piece-text {
+  position: absolute;
+  z-index: 2;
+}
+.piece {
+  width: 9vh;
+  height: 9vh;
+}
 .endzone {
   height: 10vh;
   border: 1px solid black;
 }
 .grid {
-  z-index: 1;
+  z-index: 10;
   position: absolute;
 }
 .grid td:hover{

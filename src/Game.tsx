@@ -5,18 +5,6 @@ import {makeMove, MakeMoveResponse} from './gameLogic';
 
 let selected: number[] | null;
 
-function select(row: number, col: number) {
-  if (selected && selected[0] !== null && selected[1] !== null) {
-    document.getElementById(selected[0] + "," + selected[1])?.classList.remove("selected");
-  }
-  if (row === -1 || col === -1) {
-    selected = null;
-    return;
-  }
-  selected = [row, col];
-  document.getElementById(selected[0] + "," + selected[1])?.classList.add("selected");
-}
-
 const Game = () => {
   const [history, setHistory] = useState([
     {
@@ -30,6 +18,19 @@ const Game = () => {
       ],
     },
   ]);
+
+  function select(row: number, col: number, isClick: boolean) {
+    if (isClick && !isFirstAction) return;
+    if (selected && selected[0] !== null && selected[1] !== null) {
+      document.getElementById(selected[0] + "," + selected[1])?.classList.remove("selected");
+    }
+    if (row === -1 || col === -1) {
+      selected = null;
+      return;
+    }
+    selected = [row, col];
+    document.getElementById(selected[0] + "," + selected[1])?.classList.add("selected");
+  }
   
   const DEFAULT_PIECES_REMAINING = 1000; // Arbitrary number larger than the max stack size
   const [currentBoard, setCurrentBoard] = useState(history[history.length - 1].board);
@@ -72,7 +73,7 @@ const Game = () => {
     setWhiteToPlay(!whiteToPlay);
     setPiecesRemaining(1000);
     setIsFirstAction(true);
-    select(-1, -1);
+    select(-1, -1, false);
   }
 
   const move = useCallback(
@@ -103,10 +104,11 @@ const Game = () => {
       if (piecesRemaining < movingStackSize) movingStackSize = piecesRemaining;
       
       const makeMoveResponse = makeMove(movingStackSize, nextBoard[row][col]!, nextBoard[nextRow][nextCol]!, whiteToPlay, isFirstAction);
+      
       nextBoard[nextRow][nextCol] = makeMoveResponse.nextSquareCode;
       nextBoard[row][col] = makeMoveResponse.origSquareCode;
       const isTurnOver = makeMoveResponse.isTurnOver;
-      select(nextRow, nextCol);
+      select(nextRow, nextCol, false);
 
       setHistory((prevHistory) => [...prevHistory, { board: nextBoard }]);
       console.log('After update (new history will be logged by useEffect):', history);
