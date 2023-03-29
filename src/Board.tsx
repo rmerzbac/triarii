@@ -5,6 +5,8 @@ import Endzone from "./Endzone";
 
 interface BoardProps {
   board: any;
+  whiteInEndzone: number;
+  blackInEndzone: number;
   onSelect: (row: number, col: number, isClick: boolean) => void;
 }
 
@@ -25,9 +27,9 @@ function createGrid(onSelect: (row: number, col: number, isClick: boolean) => vo
   return table;
 }
 
-function createBoard(board: any, onSelect: (row: number, col: number, isClick: boolean) => void) {
+function createBoard(board: any, whiteInEndzone: number, blackInEndzone: number, onSelect: (row: number, col: number, isClick: boolean) => void) {
   let table = [];
-  table.push(<tr>{<Endzone color={"black"} />}</tr>);
+  table.push(<tr>{<Endzone color={"black"} pieces={whiteInEndzone} />}</tr>);
   // Outer loop to create parent
   for (let i = 0; i < 6; i++) {
     let children = [];
@@ -48,18 +50,18 @@ function createBoard(board: any, onSelect: (row: number, col: number, isClick: b
     // Create the parent and add the children
     table.push(<tr>{children}</tr>);
   }
-  table.push(<tr>{<Endzone color={"white"} />}</tr>);
+  table.push(<tr>{<Endzone color={"white"} pieces={blackInEndzone} />}</tr>);
   return table;
 }
 
-const Board: FC<BoardProps> = ({ board, onSelect }) => {
+const Board: FC<BoardProps> = ({ board, whiteInEndzone, blackInEndzone, onSelect }) => {
   return (
     <div>
       <table className="grid" cellSpacing={0}>
         <tbody>{createGrid(onSelect)}</tbody>
       </table>
       <table cellSpacing={0}>
-        <tbody>{createBoard(board, onSelect)}</tbody>
+        <tbody>{createBoard(board, whiteInEndzone, blackInEndzone, onSelect)}</tbody>
       </table>
     </div>
   );

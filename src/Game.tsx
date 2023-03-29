@@ -3,7 +3,11 @@ import _ from 'lodash';
 import Board from './Board';
 import {makeMove, MakeMoveResponse} from './gameLogic';
 
-let selected: number[] | null;
+interface GameInterface {
+  board: (string | null)[][],
+  whiteInEndzone: number,
+  blackInEndzone: number,
+}
 
 const Game = () => {
   const [history, setHistory] = useState([
@@ -16,30 +20,40 @@ const Game = () => {
         [null, '4w', null, '4w', null, '4w'],
         ['6w', null, '6w', null, '6w', null],
       ],
+      whiteInEndzone: 0,
+      blackInEndzone: 0,
     },
   ]);
 
   function select(row: number, col: number, isClick: boolean) {
     if (isClick && !isFirstAction) return;
-    if (selected && selected[0] !== null && selected[1] !== null) {
-      document.getElementById(selected[0] + "," + selected[1])?.classList.remove("selected");
-    }
-    if (row === -1 || col === -1) {
-      selected = null;
-      return;
-    }
-    selected = [row, col];
-    document.getElementById(selected[0] + "," + selected[1])?.classList.add("selected");
+  
+    setSelected(prevSelected => {
+      if (prevSelected && prevSelected[0] !== null && prevSelected[1] !== null) {
+        document.getElementById(prevSelected[0] + "," + prevSelected[1])?.classList.remove("selected");
+      }
+      if (row === -1 || col === -1) {
+        return null;
+      }
+      document.getElementById(row + "," + col)?.classList.add("selected");
+      return [row, col];
+    });
   }
   
+  const BOARD_SIZE = 6; // Number of rows and columns in Triarii
   const DEFAULT_PIECES_REMAINING = 1000; // Arbitrary number larger than the max stack size
+  const [selected, setSelected] = useState<number[] | null>(null);
   const [currentBoard, setCurrentBoard] = useState(history[history.length - 1].board);
-  const [whiteToPlay, setWhiteToPlay] = useState(true);
+  const [currentWhiteInEnzone, setCurrentWhiteInEndzone] = useState(history[history.length - 1].whiteInEndzone);
+  const [currentBlackInEnzone, setCurrentBlackInEndzone] = useState(history[history.length - 1].blackInEndzone);
+  const [isWhiteMoving, setIsWhiteMoving] = useState(true);
   const [piecesRemaining, setPiecesRemaining] = useState(DEFAULT_PIECES_REMAINING);
   const [isFirstAction, setIsFirstAction] = useState(true);
 
   useEffect(() => {
     setCurrentBoard(history[history.length - 1].board);
+    setCurrentWhiteInEndzone(history[history.length - 1].whiteInEndzone);
+    setCurrentBlackInEndzone(history[history.length - 1].blackInEndzone);
   }, [history]);
 
   useEffect(() => {
@@ -50,6 +64,39 @@ const Game = () => {
   const [inputData, setInputData] = useState({value: ""})
   const inputRef = useRef<HTMLInputElement>(null);
   const [selectedDirection, setSelectedDirection] = useState<string | null>(null);
+
+  const [boardDictionary, setBoardDictionary] = useState<Record<string, number>>({});
+
+  
+  const updateDictionary = (hashedBoard: string) => {
+    setBoardDictionary(prevBoardDictionary => {
+      if (prevBoardDictionary.hasOwnProperty(hashedBoard)) {
+        return {
+          ...prevBoardDictionary,
+          [hashedBoard]: prevBoardDictionary[hashedBoard] + 1,
+        };
+      } else {
+        return {
+          ...prevBoardDictionary,
+          [hashedBoard]: 1,
+        };
+      }
+    });
+  }
+
+  const convertBoardToString = (boardState: GameInterface): string => {
+    let str = "//";
+    for (let i = 0; i < BOARD_SIZE; i++) {
+      for (let j = 0; j < BOARD_SIZE; j++) {
+        str += boardState.board[i][j] ?? "_";
+        str += "/";
+      }
+      str += "/";
+    }
+    str += "/[" + boardState.whiteInEndzone + "," + boardState.blackInEndzone + "]";
+    console.log(str);
+    return str; 
+  }
 
   const handleChange: ChangeEventHandler<HTMLInputElement> = (event) => {
     const target = event.target as HTMLInputElement;
@@ -70,11 +117,25 @@ const Game = () => {
   };
 
   const endTurn = () => {
-    setWhiteToPlay(!whiteToPlay);
+    setIsWhiteMoving(!isWhiteMoving);
     setPiecesRemaining(1000);
     setIsFirstAction(true);
     select(-1, -1, false);
   }
+
+  const endGame = (isWinnerWhite: boolean | null) => {
+    if (isWinnerWhite === null) {
+      alert("Draw");
+    } else if (isWinnerWhite) {
+      alert("White wins!");
+    } else {
+      alert("Black wins!");
+    }
+  }
+
+  useEffect(() => {
+    console.log('Selected:', selected);
+  }, [selected]);
 
   const move = useCallback(
     (movingStackSize: number, dir: string) => {
@@ -102,24 +163,52 @@ const Game = () => {
       }
       
       if (piecesRemaining < movingStackSize) movingStackSize = piecesRemaining;
+
+      if (nextCol < 0 || nextCol >= BOARD_SIZE) throw new Error("Out of bounds");
+      if (nextRow === BOARD_SIZE && isWhiteMoving) throw new Error("Out of bounds");
+      if (nextRow === -1 && !isWhiteMoving) throw new Error("Out of bounds");
+
+      let nextSquare = null;
+      if (!(nextRow === BOARD_SIZE && !isWhiteMoving) &&
+        !(nextRow === -1 && isWhiteMoving))
+        nextSquare = nextBoard[nextRow][nextCol];
       
-      const makeMoveResponse = makeMove(movingStackSize, nextBoard[row][col]!, nextBoard[nextRow][nextCol]!, whiteToPlay, isFirstAction);
+      const makeMoveResponse = makeMove(movingStackSize, nextBoard[row][col]!, nextSquare ?? "", isWhiteMoving, isFirstAction);
       
-      nextBoard[nextRow][nextCol] = makeMoveResponse.nextSquareCode;
+      let endzoneWhite = currentWhiteInEnzone;
+      let endzoneBlack = currentBlackInEnzone;
+      if (nextRow === BOARD_SIZE && !isWhiteMoving) {
+        endzoneBlack += movingStackSize;
+      } else if (nextRow === -1 && isWhiteMoving) {
+        endzoneWhite += movingStackSize;
+      } else {
+        nextBoard[nextRow][nextCol] = makeMoveResponse.nextSquareCode;
+      }
       nextBoard[row][col] = makeMoveResponse.origSquareCode;
+
       const isTurnOver = makeMoveResponse.isTurnOver;
       select(nextRow, nextCol, false);
 
-      setHistory((prevHistory) => [...prevHistory, { board: nextBoard }]);
+      if (endzoneWhite >= 6)
+        endGame(true);
+      if (endzoneBlack >= 6)
+        endGame(false);
+      
+      const stringifiedBoard = convertBoardToString({board: nextBoard, whiteInEndzone: endzoneWhite, blackInEndzone: endzoneBlack});
+      updateDictionary(stringifiedBoard);
+
+      if (boardDictionary[stringifiedBoard] >= 3) endGame(null); // Threefold repetition
+
+      setHistory((prevHistory) => [...prevHistory, { board: nextBoard, whiteInEndzone: endzoneWhite, blackInEndzone: endzoneBlack}]);
       console.log('After update (new history will be logged by useEffect):', history);
-      if (isTurnOver || movingStackSize === 1) {
+      if (isTurnOver || movingStackSize - makeMoveResponse.piecesUsedInMove <= 1 || nextRow === BOARD_SIZE || nextRow === -1) {
         endTurn();
       } else {
-        setPiecesRemaining(movingStackSize - 1);
+        setPiecesRemaining(movingStackSize - makeMoveResponse.piecesUsedInMove);
         setIsFirstAction(false);
       }
     },
-    [currentBoard, history, whiteToPlay, piecesRemaining, isFirstAction]
+    [selected, currentBoard, currentWhiteInEnzone, currentBlackInEnzone, history, isWhiteMoving, piecesRemaining, isFirstAction]
   );
 
   const handleInputSubmit = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -138,10 +227,8 @@ const Game = () => {
       }
     }
   };
-  
 
-
-  const handleKeyDown = (event: KeyboardEvent) => {
+  const handleKeyDown = useCallback((event: KeyboardEvent) => {
     if (event.code === 'Space') {
       event.preventDefault();
       if (piecesRemaining === DEFAULT_PIECES_REMAINING) throw new Error("No move made.");
@@ -169,19 +256,19 @@ const Game = () => {
       showInputBox(selected[0], selected[1]);
       event.preventDefault();
     }
-  };
+  }, [selected]);
   
   
   
   useEffect(() => {
     console.log('listener added');
     window.addEventListener('keydown', handleKeyDown);
-
+  
     return () => {
       // Clean up the listener when the component is unmounted
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [move]);  
+  }, [handleKeyDown]);  
 
   useEffect(() => {
     if (boardRef.current) {
@@ -196,6 +283,8 @@ const Game = () => {
       <div ref={boardRef} tabIndex={0}>
         <Board
           board={history[history.length - 1].board}
+          whiteInEndzone={currentWhiteInEnzone}
+          blackInEndzone={currentBlackInEnzone}
           onSelect={select} // Pass select function as a prop
         />
         {showInput.visible && (
@@ -209,7 +298,7 @@ const Game = () => {
             onKeyDown={handleInputSubmit}
           />
         )}
-        <p>Current player: {whiteToPlay ? "White" : "Black"}</p>
+        <p>Current player: {isWhiteMoving ? "White" : "Black"}</p>
         <p>{piecesRemaining === DEFAULT_PIECES_REMAINING ? "" : "Pieces remaining: " + piecesRemaining}</p>
       </div>
     </div>

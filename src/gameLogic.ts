@@ -12,10 +12,11 @@ export interface MakeMoveResponse {
   nextSquareCode: string | null;
   origSquareCode: string | null;
   isTurnOver: boolean;
+  piecesUsedInMove: number;
 }
 
 export function parseCode(code: string) : SquareStatus {
-  if (code === null) return {numWhitePieces: 0, numBlackPieces: 0, pinStatus: NO_PIN};
+  if (code === null || code === "") return {numWhitePieces: 0, numBlackPieces: 0, pinStatus: NO_PIN};
   const pIndex = code.indexOf('P'); 
 
   function isWhite(index: number) {
@@ -76,11 +77,12 @@ function isPinning(stack: SquareStatus, isWhite: boolean) : boolean {
   return isWhite ? stack.pinStatus === WHITE_PINNING : stack.pinStatus === BLACK_PINNING;
 }
 
-function validateMove(stackerSize: number, stackee: SquareStatus, isWhiteMoving: boolean) {
-  if (isPinning(stackee, isWhiteMoving)) return;
+function getPiecesUsedInMove(stackerSize: number, stackee: SquareStatus, isWhiteMoving: boolean) : number {
+  if (isPinning(stackee, isWhiteMoving)) return 1;
   const opponentSize = getStackSize(stackee, !isWhiteMoving);
-  if (opponentSize > 8) return; // oversized stacks can always be pinned
-  if (opponentSize <= stackerSize / 2) return;
+  if (opponentSize === 0) return 1; // no pieces in square
+  if (opponentSize > 8) return 1; // oversized stacks can always be pinned by one piece
+  if (opponentSize <= stackerSize / 2) return opponentSize * 2;
   else throw new Error("Opponent cannot be stacked");
 }
 
@@ -125,8 +127,10 @@ export function makeMove(movingStackSize: number, stackerCode: string, stackeeCo
   if (movingStackSize > stackSizeToMove) movingStackSize = stackSizeToMove;
   if (isFirstAction && getStackSize(stacker, isWhiteMoving) === movingStackSize) // Entire stack being moved
     isTurnOver = true;
-  validateMove(movingStackSize, stackee, isWhiteMoving);
+  const piecesUsedInMove = getPiecesUsedInMove(movingStackSize, stackee, isWhiteMoving);
   return {nextSquareCode: addStack(movingStackSize, stackee, isWhiteMoving), 
     origSquareCode: removeStack(movingStackSize, stacker, isWhiteMoving),
-    isTurnOver: isTurnOver};
+    isTurnOver: isTurnOver,
+    piecesUsedInMove: piecesUsedInMove
+  };
 };

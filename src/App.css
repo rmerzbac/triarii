@@ -1,5 +1,11 @@
+* {
+  font-family: "Montserrat",sans-serif;
+}
 body {
   background: #FAF0F0;
+}
+h1 {
+  text-align: center;
 }
 .boardDiv {
   display: flex;
@@ -44,6 +50,7 @@ td.selected {
 .endzone {
   height: 10vh;
   border: 1px solid black;
+  text-align: center;
 }
 .grid {
   z-index: 10;

@@ -2,6 +2,7 @@ import React, { FC } from "react";
 
 interface EndzoneProps {
   color: string;
+  pieces: number;
 }
 
 const Endzone: FC<EndzoneProps> = (props) => {
@@ -11,8 +12,9 @@ const Endzone: FC<EndzoneProps> = (props) => {
       className="endzone"
       style={{
         "background": props.color === "white" ? "#FAF0F0" : "#181818",
+        "color": props.color === "white" ? "black" : "white"
       }}
-    ></td>
+    >{props.pieces}</td>
   );
 };
 
