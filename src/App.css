@@ -6,6 +6,9 @@ body {
     align-items: center;
     justify-content: center;
 }
+input {
+  z-index: 32;
+}
 table {
   border: 1px solid black;
 }

@@ -8,6 +8,12 @@ interface SquareStatus {
   pinStatus: number;
 }
 
+export interface MakeMoveResponse {
+  nextSquareCode: string | null;
+  origSquareCode: string | null;
+  isTurnOver: boolean;
+}
+
 export function parseCode(code: string) : SquareStatus {
   if (code === null) return {numWhitePieces: 0, numBlackPieces: 0, pinStatus: NO_PIN};
   const pIndex = code.indexOf('P'); 
@@ -103,7 +109,8 @@ function removeStack(numMovingPieces: number, stack: SquareStatus, isWhiteMoving
   return makeCode({numWhitePieces: whitePieces, numBlackPieces: blackPieces, pinStatus: pinStatus});
 }
 
-export function makeMove(movingStackSize: number, stackerCode: string, stackeeCode: string, isWhiteMoving: boolean): [string | null, string | null] {
+export function makeMove(movingStackSize: number, stackerCode: string, stackeeCode: string, isWhiteMoving: boolean, isFirstAction: boolean): MakeMoveResponse {
+  let isTurnOver = false;
   let stacker = parseCode(stackerCode);
   let stackee = parseCode(stackeeCode);
   if (
@@ -116,6 +123,10 @@ export function makeMove(movingStackSize: number, stackerCode: string, stackeeCo
   }
   const stackSizeToMove = isWhiteMoving ? stacker.numWhitePieces : stacker.numBlackPieces;
   if (movingStackSize > stackSizeToMove) movingStackSize = stackSizeToMove;
+  if (isFirstAction && getStackSize(stacker, isWhiteMoving) === movingStackSize) // Entire stack being moved
+    isTurnOver = true;
   validateMove(movingStackSize, stackee, isWhiteMoving);
-  return [addStack(movingStackSize, stackee, isWhiteMoving), removeStack(movingStackSize, stacker, isWhiteMoving)];
+  return {nextSquareCode: addStack(movingStackSize, stackee, isWhiteMoving), 
+    origSquareCode: removeStack(movingStackSize, stacker, isWhiteMoving),
+    isTurnOver: isTurnOver};
 };
