@@ -1,6 +1,4 @@
-const WHITE_PINNING = 1;
-const BLACK_PINNING = -1;
-const NO_PIN = 0;
+import { BOARD_SIZE, WHITE_PINNING, BLACK_PINNING, NO_PIN } from './constants';
 
 interface SquareStatus {
   numWhitePieces: number;
@@ -13,6 +11,26 @@ export interface MakeMoveResponse {
   origSquareCode: string | null;
   isTurnOver: boolean;
   piecesUsedInMove: number;
+}
+
+export interface GameInterface {
+  board: (string | null)[][],
+  whiteInEndzone: number,
+  blackInEndzone: number,
+}
+
+export function convertBoardToString(boardState: GameInterface): string {
+  let str = "//";
+  for (let i = 0; i < BOARD_SIZE; i++) {
+    for (let j = 0; j < BOARD_SIZE; j++) {
+      str += boardState.board[i][j] ?? "_";
+      str += "/";
+    }
+    str += "/";
+  }
+  str += "/[" + boardState.whiteInEndzone + "," + boardState.blackInEndzone + "]";
+  console.log(str);
+  return str; 
 }
 
 export function parseCode(code: string) : SquareStatus {
@@ -77,6 +95,14 @@ function isPinning(stack: SquareStatus, isWhite: boolean) : boolean {
   return isWhite ? stack.pinStatus === WHITE_PINNING : stack.pinStatus === BLACK_PINNING;
 }
 
+function isPrimaryStackWhite(stackCode: string): boolean {
+  const wIndex = stackCode.indexOf('w');
+  const bIndex = stackCode.indexOf('b');
+  if (wIndex === -1) return false;
+  if (bIndex === -1) return true;
+  return wIndex < bIndex;
+}
+
 function getPiecesUsedInMove(stackerSize: number, stackee: SquareStatus, isWhiteMoving: boolean) : number {
   if (isPinning(stackee, isWhiteMoving)) return 1;
   const opponentSize = getStackSize(stackee, !isWhiteMoving);
@@ -134,3 +160,61 @@ export function makeMove(movingStackSize: number, stackerCode: string, stackeeCo
     piecesUsedInMove: piecesUsedInMove
   };
 };
+
+function convertBoardToBooleans(board: (string | null)[][], isWhite: boolean) : (boolean | null)[][] {
+  let convertedBoard : (boolean | null)[][] = Array.from({ length: BOARD_SIZE }, () =>
+    Array.from({ length: BOARD_SIZE }, () => null)
+  );
+  for (let i = 0; i < BOARD_SIZE; i++) {
+    for (let j = 0; j < BOARD_SIZE; j++) {
+      const square = board[i][j];
+      if (square) {
+        const isStackWhite = isPrimaryStackWhite(square);
+        if (isStackWhite !== isWhite) {
+          const stack = parseCode(square);
+          const stackSize = isStackWhite ? stack.numWhitePieces : stack.numBlackPieces;
+          convertedBoard[i][j] = stackSize <= 4;
+        }
+      }
+    }
+  }
+  return convertedBoard;
+}
+
+function isInBounds(row: number, col: number) {
+  if (row < 0) return false;
+  if (row >= BOARD_SIZE) return false;
+  if (col < 0) return false;
+  if (col >= BOARD_SIZE) return false;
+  return true;
+}
+
+function conditionalAddToQueue(row: number, col: number, stack: [number, number][], visited: Set<String>) {
+  if (!isInBounds(row, col)) return;
+  if (visited.has(`${row},${col}`)) return;
+  stack.push([row, col]);
+}
+
+export function isViolatingFourOrFewerCondition(board: (string | null)[][], isWhite: boolean) : boolean {
+  const convertedBoard = convertBoardToBooleans(board, !isWhite);
+  console.log(convertedBoard);
+  
+  const stack : [number, number][] = [];
+  const visited : Set<string> = new Set();
+  
+  isWhite ? stack.push([0, 0]) : stack.push([BOARD_SIZE - 1, BOARD_SIZE - 1]); // starting position
+
+  while (stack.length > 0) {
+    const [row, col] = stack.pop() as [number, number];
+    visited.add(`${row},${col}`);
+    if (convertedBoard[row][col] === null) {
+      conditionalAddToQueue(row-1, col, stack, visited);
+      conditionalAddToQueue(row+1, col, stack, visited);
+      conditionalAddToQueue(row, col-1, stack, visited);
+      conditionalAddToQueue(row, col+1, stack, visited);
+    }
+    if (convertedBoard[row][col]) return false;
+  }
+
+  return true;
+}

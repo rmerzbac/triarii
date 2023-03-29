@@ -1,13 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef, ChangeEventHandler} from 'react';
 import _ from 'lodash';
 import Board from './Board';
-import {makeMove, MakeMoveResponse} from './gameLogic';
+import {makeMove, MakeMoveResponse, convertBoardToString, isViolatingFourOrFewerCondition} from './gameLogic';
+import { BOARD_SIZE, DEFAULT_PIECES_REMAINING } from './constants';
 
-interface GameInterface {
-  board: (string | null)[][],
-  whiteInEndzone: number,
-  blackInEndzone: number,
-}
 
 const Game = () => {
   const [history, setHistory] = useState([
@@ -40,8 +36,6 @@ const Game = () => {
     });
   }
   
-  const BOARD_SIZE = 6; // Number of rows and columns in Triarii
-  const DEFAULT_PIECES_REMAINING = 1000; // Arbitrary number larger than the max stack size
   const [selected, setSelected] = useState<number[] | null>(null);
   const [currentBoard, setCurrentBoard] = useState(history[history.length - 1].board);
   const [currentWhiteInEnzone, setCurrentWhiteInEndzone] = useState(history[history.length - 1].whiteInEndzone);
@@ -66,37 +60,31 @@ const Game = () => {
   const [selectedDirection, setSelectedDirection] = useState<string | null>(null);
 
   const [boardDictionary, setBoardDictionary] = useState<Record<string, number>>({});
-
+  useEffect(() => {
+    console.log('Updated dictionary:', boardDictionary);
+  }, [boardDictionary]);
   
-  const updateDictionary = (hashedBoard: string) => {
+  const updateDictionary = (
+    hashedBoard: string,
+    callback: (updatedBoardDictionary: Record<string, number>) => void
+  ): void => {
     setBoardDictionary(prevBoardDictionary => {
+      let updatedBoardDictionary: Record<string, number>;
       if (prevBoardDictionary.hasOwnProperty(hashedBoard)) {
-        return {
+        updatedBoardDictionary = {
           ...prevBoardDictionary,
           [hashedBoard]: prevBoardDictionary[hashedBoard] + 1,
         };
       } else {
-        return {
+        updatedBoardDictionary = {
           ...prevBoardDictionary,
           [hashedBoard]: 1,
         };
       }
+      callback(updatedBoardDictionary);
+      return updatedBoardDictionary;
     });
-  }
-
-  const convertBoardToString = (boardState: GameInterface): string => {
-    let str = "//";
-    for (let i = 0; i < BOARD_SIZE; i++) {
-      for (let j = 0; j < BOARD_SIZE; j++) {
-        str += boardState.board[i][j] ?? "_";
-        str += "/";
-      }
-      str += "/";
-    }
-    str += "/[" + boardState.whiteInEndzone + "," + boardState.blackInEndzone + "]";
-    console.log(str);
-    return str; 
-  }
+  };
 
   const handleChange: ChangeEventHandler<HTMLInputElement> = (event) => {
     const target = event.target as HTMLInputElement;
@@ -132,10 +120,6 @@ const Game = () => {
       alert("Black wins!");
     }
   }
-
-  useEffect(() => {
-    console.log('Selected:', selected);
-  }, [selected]);
 
   const move = useCallback(
     (movingStackSize: number, dir: string) => {
@@ -195,12 +179,20 @@ const Game = () => {
         endGame(false);
       
       const stringifiedBoard = convertBoardToString({board: nextBoard, whiteInEndzone: endzoneWhite, blackInEndzone: endzoneBlack});
-      updateDictionary(stringifiedBoard);
 
-      if (boardDictionary[stringifiedBoard] >= 3) endGame(null); // Threefold repetition
+      updateDictionary(stringifiedBoard, (newBoardDictionary) => {
+        if (newBoardDictionary[stringifiedBoard] >= 3) endGame(null); // Threefold repetition
+        console.log(newBoardDictionary);
+      });
+
+      if (isViolatingFourOrFewerCondition(nextBoard, true)) {
+        endGame(false);
+      }
+      if (isViolatingFourOrFewerCondition(nextBoard, false)) {
+        endGame(true);
+      }
 
       setHistory((prevHistory) => [...prevHistory, { board: nextBoard, whiteInEndzone: endzoneWhite, blackInEndzone: endzoneBlack}]);
-      console.log('After update (new history will be logged by useEffect):', history);
       if (isTurnOver || movingStackSize - makeMoveResponse.piecesUsedInMove <= 1 || nextRow === BOARD_SIZE || nextRow === -1) {
         endTurn();
       } else {
@@ -208,7 +200,7 @@ const Game = () => {
         setIsFirstAction(false);
       }
     },
-    [selected, currentBoard, currentWhiteInEnzone, currentBlackInEnzone, history, isWhiteMoving, piecesRemaining, isFirstAction]
+    [selected, currentBoard, currentWhiteInEnzone, currentBlackInEnzone, history, isWhiteMoving, piecesRemaining, isFirstAction, boardDictionary]
   );
 
   const handleInputSubmit = (event: React.KeyboardEvent<HTMLInputElement>) => {
