@@ -6,6 +6,8 @@ import { BOARD_SIZE, DEFAULT_PIECES_REMAINING } from './constants';
 
 
 const Game = () => {
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   const [history, setHistory] = useState([
     {
       board: [
@@ -123,81 +125,86 @@ const Game = () => {
 
   const move = useCallback(
     (movingStackSize: number, dir: string) => {
-      if (movingStackSize < 1) throw new Error("You must move at least one piece. Press space to end your turn.");
-      if (selected === null) return;
-      const row = selected[0];
-      const col = selected[1];
-      const nextBoard = _.cloneDeep(currentBoard);
-      const stack = nextBoard[row][col];
-      if (stack === null) return;
+      try {
+        if (movingStackSize < 1) throw new Error("You must move at least one piece. Press space to end your turn.");
+        if (selected === null) return;
+        const row = selected[0];
+        const col = selected[1];
+        const nextBoard = _.cloneDeep(currentBoard);
+        const stack = nextBoard[row][col];
+        if (stack === null) return;
 
-      let nextRow = row;
-      let nextCol = col;
-      if (dir === "u") {
-        nextRow -= 1;
-      }
-      if (dir === "l") {
-        nextCol -= 1;
-      }
-      if (dir === "d") {
-        nextRow += 1;
-      }
-      if (dir === "r") {
-        nextCol += 1;
-      }
-      
-      if (piecesRemaining < movingStackSize) movingStackSize = piecesRemaining;
+        let nextRow = row;
+        let nextCol = col;
+        if (dir === "u") {
+          nextRow -= 1;
+        }
+        if (dir === "l") {
+          nextCol -= 1;
+        }
+        if (dir === "d") {
+          nextRow += 1;
+        }
+        if (dir === "r") {
+          nextCol += 1;
+        }
+        
+        if (piecesRemaining < movingStackSize) movingStackSize = piecesRemaining;
 
-      if (nextCol < 0 || nextCol >= BOARD_SIZE) throw new Error("Out of bounds");
-      if (nextRow === BOARD_SIZE && isWhiteMoving) throw new Error("Out of bounds");
-      if (nextRow === -1 && !isWhiteMoving) throw new Error("Out of bounds");
+        if (nextCol < 0 || nextCol >= BOARD_SIZE) throw new Error("Illegal move (out of bounds).");
+        if (nextRow === BOARD_SIZE && isWhiteMoving) throw new Error("Illegal move (out of bounds).");
+        if (nextRow === -1 && !isWhiteMoving) throw new Error("Illegal move (out of bounds).");
 
-      let nextSquare = null;
-      if (!(nextRow === BOARD_SIZE && !isWhiteMoving) &&
-        !(nextRow === -1 && isWhiteMoving))
-        nextSquare = nextBoard[nextRow][nextCol];
-      
-      const makeMoveResponse = makeMove(movingStackSize, nextBoard[row][col]!, nextSquare ?? "", isWhiteMoving, isFirstAction);
-      
-      let endzoneWhite = currentWhiteInEnzone;
-      let endzoneBlack = currentBlackInEnzone;
-      if (nextRow === BOARD_SIZE && !isWhiteMoving) {
-        endzoneBlack += movingStackSize;
-      } else if (nextRow === -1 && isWhiteMoving) {
-        endzoneWhite += movingStackSize;
-      } else {
-        nextBoard[nextRow][nextCol] = makeMoveResponse.nextSquareCode;
-      }
-      nextBoard[row][col] = makeMoveResponse.origSquareCode;
+        let nextSquare = null;
+        if (!(nextRow === BOARD_SIZE && !isWhiteMoving) &&
+          !(nextRow === -1 && isWhiteMoving))
+          nextSquare = nextBoard[nextRow][nextCol];
+        
+        const makeMoveResponse = makeMove(movingStackSize, nextBoard[row][col]!, nextSquare ?? "", isWhiteMoving, isFirstAction);
+        
+        let endzoneWhite = currentWhiteInEnzone;
+        let endzoneBlack = currentBlackInEnzone;
+        if (nextRow === BOARD_SIZE && !isWhiteMoving) {
+          endzoneBlack += movingStackSize;
+        } else if (nextRow === -1 && isWhiteMoving) {
+          endzoneWhite += movingStackSize;
+        } else {
+          nextBoard[nextRow][nextCol] = makeMoveResponse.nextSquareCode;
+        }
+        nextBoard[row][col] = makeMoveResponse.origSquareCode;
 
-      const isTurnOver = makeMoveResponse.isTurnOver;
-      select(nextRow, nextCol, false);
+        const isTurnOver = makeMoveResponse.isTurnOver;
+        select(nextRow, nextCol, false);
 
-      if (endzoneWhite >= 6)
-        endGame(true);
-      if (endzoneBlack >= 6)
-        endGame(false);
-      
-      const stringifiedBoard = convertBoardToString({board: nextBoard, whiteInEndzone: endzoneWhite, blackInEndzone: endzoneBlack});
+        if (endzoneWhite >= 6)
+          endGame(true);
+        if (endzoneBlack >= 6)
+          endGame(false);
+        
+        const stringifiedBoard = convertBoardToString({board: nextBoard, whiteInEndzone: endzoneWhite, blackInEndzone: endzoneBlack});
 
-      updateDictionary(stringifiedBoard, (newBoardDictionary) => {
-        if (newBoardDictionary[stringifiedBoard] >= 3) endGame(null); // Threefold repetition
-        console.log(newBoardDictionary);
-      });
+        updateDictionary(stringifiedBoard, (newBoardDictionary) => {
+          if (newBoardDictionary[stringifiedBoard] >= 3) endGame(null); // Threefold repetition
+          console.log(newBoardDictionary);
+        });
 
-      if (isViolatingFourOrFewerCondition(nextBoard, true)) {
-        endGame(false);
-      }
-      if (isViolatingFourOrFewerCondition(nextBoard, false)) {
-        endGame(true);
-      }
+        if (isViolatingFourOrFewerCondition(nextBoard, true)) {
+          endGame(false);
+        }
+        if (isViolatingFourOrFewerCondition(nextBoard, false)) {
+          endGame(true);
+        }
 
-      setHistory((prevHistory) => [...prevHistory, { board: nextBoard, whiteInEndzone: endzoneWhite, blackInEndzone: endzoneBlack}]);
-      if (isTurnOver || movingStackSize - makeMoveResponse.piecesUsedInMove <= 1 || nextRow === BOARD_SIZE || nextRow === -1) {
-        endTurn();
-      } else {
-        setPiecesRemaining(movingStackSize - makeMoveResponse.piecesUsedInMove);
-        setIsFirstAction(false);
+        setHistory((prevHistory) => [...prevHistory, { board: nextBoard, whiteInEndzone: endzoneWhite, blackInEndzone: endzoneBlack}]);
+        if (isTurnOver || movingStackSize - makeMoveResponse.piecesUsedInMove <= 1 || nextRow === BOARD_SIZE || nextRow === -1) {
+          endTurn();
+        } else {
+          setPiecesRemaining(movingStackSize - makeMoveResponse.piecesUsedInMove);
+          setIsFirstAction(false);
+        }
+      } catch (e : any) {
+        console.error(e);
+        setErrorMessage(e.message);
       }
     },
     [selected, currentBoard, currentWhiteInEnzone, currentBlackInEnzone, history, isWhiteMoving, piecesRemaining, isFirstAction, boardDictionary]
@@ -290,8 +297,11 @@ const Game = () => {
             onKeyDown={handleInputSubmit}
           />
         )}
-        <p>Current player: {isWhiteMoving ? "White" : "Black"}</p>
-        <p>{piecesRemaining === DEFAULT_PIECES_REMAINING ? "" : "Pieces remaining: " + piecesRemaining}</p>
+        <div className="game-information">
+          <p>Current player: <b>{isWhiteMoving ? "White" : "Black"}</b></p>
+          <p>{piecesRemaining === DEFAULT_PIECES_REMAINING ? "" : "Pieces remaining: "}<b>{piecesRemaining === DEFAULT_PIECES_REMAINING ? "" : piecesRemaining}</b></p>
+          {errorMessage && <p className="error">{errorMessage}</p>}
+        </div>
       </div>
     </div>
   );
