@@ -54,7 +54,6 @@ export function convertStringToBoard(code: string): GameInterface {
     }
     board.push(squares);
   }
-  console.log(board);
   const [whiteInEndzone, blackInEndzone, isWhiteMoving, piecesRemaining, isFirstAction] = split[BOARD_SIZE+1].split(",");
   return {
     board,

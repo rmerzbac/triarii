@@ -9,6 +9,10 @@ body {
 h1 {
   text-align: center;
 }
+a {
+  text-decoration: none;
+  color: black;
+}
 .boardDiv {
   display: flex;
   align-items: center;

@@ -7,19 +7,44 @@ import { BOARD_SIZE, DEFAULT_PIECES_REMAINING } from './constants';
 
 
 const Game = ({gameId} : any) => {
+  // Inside your component
+  const [pollingInterval, setPollingInterval] = useState<any>(null);
+
+  useEffect(() => {
+    if (!pollingInterval) {
+      const interval = setInterval(() => {
+        loadGameState();
+      }, 1000); // Polling interval in milliseconds (1000 ms = 1 second)
+      setPollingInterval(interval);
+    }
+
+    return () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+        setPollingInterval(null);
+      }
+    };
+  }, [pollingInterval]);
+
   async function loadGameState() {
     try {
       const response = await fetch(`http://localhost:3001/game/${gameId}`);
-      const { boardCode } = await response.json();
-      console.log(boardCode);
+      const { boardCode, selected } = await response.json();
+      // console.log(boardCode);
       const game = convertStringToBoard(boardCode);
       setHistory((prevHistory) => [game]);
+
+      const parsedSelected = selected
+      ? selected.split(",").map((value: string) => parseInt(value, 10))
+      : [-1, -1];
+      select(parseInt(parsedSelected[0], 10), parseInt(parsedSelected[1], 10), false);
     } catch (error) {
       console.error('Error loading game state:', error);
     }
   }
   
   async function updateGameState(boardCode : string, selected : string | null) {
+    console.log("PUT:" + selected);
     try {
       await fetch(`http://localhost:3001/game/${gameId}`, {
         method: 'PUT',
@@ -65,6 +90,13 @@ const Game = ({gameId} : any) => {
 
   function select(row: number, col: number, isClick: boolean) {
     if (isClick && !isFirstAction) return;
+
+    if (isClick) {
+      const nextGameState = _.cloneDeep(history[history.length - 1]);
+      const stringifiedBoard = convertBoardToString(nextGameState);
+      setHistory((prevHistory) => [...prevHistory, nextGameState]);
+      updateGameState(stringifiedBoard, row + "," + col);
+    }
   
     setSelected(prevSelected => {
       if (prevSelected && prevSelected[0] !== null && prevSelected[1] !== null) {
@@ -95,9 +127,9 @@ const Game = ({gameId} : any) => {
     setIsFirstAction(history[history.length - 1].isFirstAction);
   }, [history]);
 
-  useEffect(() => {
+  /*useEffect(() => {
     console.log('Updated history:', history);
-  }, [history]);
+  }, [history]);*/
 
   const [showInput, setShowInput] = useState({ visible: false, top: 0, left: 0 });
   const [inputData, setInputData] = useState({value: ""})
@@ -239,8 +271,10 @@ const Game = ({gameId} : any) => {
           endGame(true);
         }
 
+        let nextSelectedForJSON : string | null = nextRow + "," + nextCol;
         if (isTurnOver || movingStackSize - makeMoveResponse.piecesUsedInMove < 1 || nextRow === BOARD_SIZE || nextRow === -1) {
           endTurn(nextGameState);
+          nextSelectedForJSON = null;
         } else {
           nextGameState.piecesRemaining = movingStackSize - makeMoveResponse.piecesUsedInMove;
           nextGameState.isFirstAction = false;
@@ -255,7 +289,7 @@ const Game = ({gameId} : any) => {
 
         console.log(stringifiedBoard);
 
-        updateGameState(stringifiedBoard, selected[0] + "," + selected[1]);
+        updateGameState(stringifiedBoard, nextSelectedForJSON);
 
       } catch (e : any) {
         console.error(e);
@@ -286,7 +320,19 @@ const Game = ({gameId} : any) => {
     if (event.code === 'Space') {
       event.preventDefault();
       if (piecesRemaining === DEFAULT_PIECES_REMAINING) throw new Error("No move made.");
-      //endTurn();
+      const nextGameState = _.cloneDeep(history[history.length - 1]);
+      endTurn(nextGameState);
+
+      setHistory((prevHistory) => [...prevHistory, nextGameState]);
+      const stringifiedBoard = convertBoardToString(nextGameState);
+
+      updateDictionary(stringifiedBoard, (newBoardDictionary) => {
+        if (newBoardDictionary[stringifiedBoard] >= 3) endGame(null); // Threefold repetition
+      });
+
+      console.log(stringifiedBoard);
+
+      updateGameState(stringifiedBoard, null);
       return;
     }
 
@@ -310,12 +356,11 @@ const Game = ({gameId} : any) => {
       showInputBox(selected[0], selected[1]);
       event.preventDefault();
     }
-  }, [selected]);
+  }, [selected, history]);
   
   
   
   useEffect(() => {
-    console.log('listener added');
     window.addEventListener('keydown', handleKeyDown);
   
     return () => {

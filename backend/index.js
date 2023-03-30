@@ -11,12 +11,11 @@ app.get('/', (req, res) => {
   res.send('Triarii backend is running!');
 });
 
-
 const { v4: uuidv4 } = require('uuid');
 
 // Create a new game
 app.post('/game', async (req, res) => {
-  const { boardCode } = req.body;
+  const { boardCode, selected } = req.body;
   const id = uuidv4();
 
   try {
@@ -27,14 +26,13 @@ app.post('/game', async (req, res) => {
   }
 });
 
-
 // Update a game state
 app.put('/game/:id', async (req, res) => {
   const { id } = req.params;
-  const { boardCode } = req.body;
+  const { boardCode, selected } = req.body;
 
   try {
-    await knex('games').where('id', id).update({ boardCode });
+    await knex('games').where('id', id).update({ boardCode, selected });
     res.sendStatus(204);
   } catch (err) {
     res.status(500).json({ error: 'Error updating the game state' });
@@ -49,7 +47,7 @@ app.get('/game/:id', async (req, res) => {
     const game = await knex('games').where('id', id).first();
 
     if (game) {
-      res.status(200).json({ boardCode: game.boardCode });
+      res.status(200).json({ boardCode: game.boardCode, selected: game.selected });
     } else {
       res.status(404).json({ error: 'Game not found' });
     }
