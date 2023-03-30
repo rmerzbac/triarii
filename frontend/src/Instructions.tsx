@@ -47,8 +47,7 @@ const Instructions = () => {
         <h5 id="fof">"Four or Fewer" condition</h5>
         <p>At any given moment, both players must have at least one stack on the board that has four or fewer pieces,
             which is directly reachable from the opponent's side. ("Directly" in this case means that it can be reached 
-            without going through another stack.) If at any moment a player violates this condition, their opponent 
-            <b>instantly wins</b>.
+            without going through another stack.) If at any moment a player violates this condition, their opponent <b>instantly wins</b>.
         </p>
         <h5>Who were the Triarii?</h5>
         <p>The Triarii were one of the three main infantry types in the Roman Republic's military during 

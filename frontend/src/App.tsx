@@ -116,6 +116,7 @@ const App: React.FC = () => {
             <Route path="/" element={<Home setPlayerColor={setPlayerColor} setToken={setToken} />} />
             <Route path="/game/:id" element={<GameWrapper playerColor={playerColor} token={token} setPlayerColor={setPlayerColor} setToken={setToken} />} />
           </Routes>
+          <div className="footer">Copyright © Reid Merzbacher 2023</div>
         </div>
       </div>
     </Router>

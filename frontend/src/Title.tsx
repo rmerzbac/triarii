@@ -8,7 +8,7 @@ interface TitleProps {
 }
 
 const Title: FC<TitleProps> = (props) => {
-  return <Link to="/"><h1>{props.title}</h1></Link>;
+  return <h1><Link to="/">{props.title}</Link></h1>;
 };
 
 export default Title;

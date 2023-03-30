@@ -20,7 +20,7 @@ function isWhite(code : string) {
   return false;
 }
 
-function getPieceImagePath(pieceCode: string): string {
+export function getPieceImagePath(pieceCode: string): string {
   if (pieceCode)
     return isWhite(pieceCode) ? WhitePiece : BlackPiece;
   return "";

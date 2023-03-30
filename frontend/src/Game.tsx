@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef, ChangeEventHandler} from 'react';
 import _ from 'lodash';
 import Board from './Board';
+import GameInformation from './GameInformation';
 import {makeMove, GameInterface, convertBoardToString, convertStringToBoard, isViolatingFourOrFewerCondition} from './gameLogic';
 import { BOARD_SIZE, DEFAULT_PIECES_REMAINING } from './constants';
+import Instructions from './Instructions';
 
 
 // TODO: CURRENTLY THREEFOLD REPETITION WILL NOT WORK, SINCE THE HISTORY IS NOT SENT VIA THE API.
@@ -41,6 +43,7 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
   const [pollingInterval, setPollingInterval] = useState<any>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selected, setSelected] = useState<number[] | null>(null);
+  const [nextSelection, setNextSelection] = useState<number[] | null>(null);
   const [currentBoard, setCurrentBoard] = useState(history[history.length - 1].board);
   const [currentWhiteInEndzone, setCurrentWhiteInEndzone] = useState(history[history.length - 1].whiteInEndzone);
   const [currentBlackInEndzone, setCurrentBlackInEndzone] = useState(history[history.length - 1].blackInEndzone);
@@ -49,8 +52,8 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
   const [isFirstAction, setIsFirstAction] = useState(true);
   const [showInput, setShowInput] = useState({ visible: false, top: 0, left: 0 });
   const [inputData, setInputData] = useState({ value: "" });
-  const [selectedDirection, setSelectedDirection] = useState<string | null>(null);
   const [boardDictionary, setBoardDictionary] = useState<Record<string, number>>({});
+  const [showInstructions, setShowInstructions] = useState(false);
 
   // Refs
   const inputRef = useRef<HTMLInputElement>(null);
@@ -63,8 +66,8 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
       if (inputRef.current) {
         const movingStackSize = parseInt(inputRef.current.value, 10);
         if (!isNaN(movingStackSize) && movingStackSize >= 0) {
-          if (selectedDirection) {
-            move(movingStackSize, selectedDirection);
+          if (nextSelection) {
+            move(movingStackSize);
           }
           setShowInput({ ...showInput, visible: false });
           inputRef.current.value = '';
@@ -78,6 +81,8 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
     if (event.code === 'Space') {
       event.preventDefault();
       if (piecesRemaining === DEFAULT_PIECES_REMAINING) throw new Error("No move made.");
+      selectNext(null);
+
       const nextGameState = _.cloneDeep(history[history.length - 1]);
       endTurn(nextGameState);
 
@@ -97,24 +102,21 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
     if (inputRef.current === document.activeElement) return;
   
     if (!selected) return;
+    
+    let arrowCode = '';
     if (event.code === 'ArrowUp') {
-      setSelectedDirection('u');
-      showInputBox(selected[0], selected[1]);
-      event.preventDefault(); // Prevent arrow keys from scrolling the page
+      arrowCode = 'u';
     } else if (event.code === 'ArrowRight') {
-      setSelectedDirection('r');
-      showInputBox(selected[0], selected[1]);
-      event.preventDefault();
+      arrowCode = 'r';
     } else if (event.code === 'ArrowDown') {
-      setSelectedDirection('d');
-      showInputBox(selected[0], selected[1]);
-      event.preventDefault();
+      arrowCode = 'd'
     } else if (event.code === 'ArrowLeft') {
-      setSelectedDirection('l');
-      showInputBox(selected[0], selected[1]);
-      event.preventDefault();
+      arrowCode = 'l'
     }
-  }, [selected, history]);
+    selectNext(arrowCode);
+    showInputBox(selected[0], selected[1]);
+    event.preventDefault();
+  }, [selected, nextSelection, history]);
 
   const handleChange: ChangeEventHandler<HTMLInputElement> = (event) => {
     const target = event.target as HTMLInputElement;
@@ -132,6 +134,10 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
         inputRef.current?.focus();
       }, 100);
     }
+  };
+
+  const toggleInstructions = () => {
+    setShowInstructions(!showInstructions);
   };
 
   // useEffect hooks
@@ -227,7 +233,7 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
     }
   }
 
-  function select(row: number, col: number, isClick: boolean) {
+  const select = (row: number, col: number, isClick: boolean) => {
     if (isWhiteMoving ? playerColor === "black" : playerColor === "white") throw new Error("Not your turn.");
 
     if (isClick && !isFirstAction) return;
@@ -248,6 +254,38 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
       }
       document.getElementById(row + "," + col)?.classList.add("selected");
       return [row, col];
+    });
+  }
+
+  const selectNext = (dir : string | null) => {
+    setNextSelection(prevNextSelection => {
+      if (prevNextSelection && prevNextSelection[0] !== null && prevNextSelection[1] !== null) {
+        document.getElementById(prevNextSelection[0] + "," + prevNextSelection[1])?.classList.remove("selected-next");
+      }
+      if (!dir) {
+        setShowInput({ ...showInput, visible: false });
+        return null;
+      }
+      if (!selected) return null;
+
+      let nextRow = selected[0];
+      let nextCol = selected[1];
+      if (dir === "u") nextRow -= 1;
+      else if (dir === "l") nextCol -= 1;
+      else if (dir === "d") nextRow += 1;
+      else if (dir === "r") nextCol += 1;
+      else return prevNextSelection;
+
+      if (nextCol < 0 || nextCol >= BOARD_SIZE) return null;
+      
+      if (nextRow === BOARD_SIZE && !isWhiteMoving) {
+        document.getElementById("endzone-black")?.classList.add("selected-next");
+      } else if (nextRow === -1 && isWhiteMoving) {
+        document.getElementById("endzone-white")?.classList.add("selected-next");
+      } else {
+        document.getElementById(nextRow + "," + nextCol)?.classList.add("selected-next");
+      }
+      return [nextRow, nextCol];
     });
   }
   
@@ -291,31 +329,19 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
   }
 
   const move = useCallback(
-    (movingStackSize: number, dir: string) => {
+    (movingStackSize: number) => {
       try {
         setErrorMessage(null);
+        if (nextSelection === null) throw new Error("No direction specified.");
         if (movingStackSize < 1) throw new Error("You must move at least one piece. Press space to end your turn.");
-        if (selected === null) return;
+        if (selected === null) throw new Error("No square selected.");
         const row = selected[0];
         const col = selected[1];
         const nextBoard = _.cloneDeep(currentBoard);
         const stack = nextBoard[row][col];
         if (stack === null) return;
 
-        let nextRow = row;
-        let nextCol = col;
-        if (dir === "u") {
-          nextRow -= 1;
-        }
-        if (dir === "l") {
-          nextCol -= 1;
-        }
-        if (dir === "d") {
-          nextRow += 1;
-        }
-        if (dir === "r") {
-          nextCol += 1;
-        }
+        const [nextRow, nextCol] = nextSelection;
         
         if (piecesRemaining < movingStackSize) movingStackSize = piecesRemaining;
 
@@ -343,6 +369,7 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
 
         const isTurnOver = makeMoveResponse.isTurnOver;
         select(nextRow, nextCol, false);
+        selectNext(null);
 
         let nextGameState : GameInterface = {board: nextBoard,
           whiteInEndzone: endzoneWhite,
@@ -388,37 +415,43 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
         setErrorMessage(e.message);
       }
     },
-    [selected, currentBoard, currentWhiteInEndzone, currentBlackInEndzone, history, isWhiteMoving, piecesRemaining, isFirstAction, boardDictionary]
+    [selected, nextSelection, currentBoard, currentWhiteInEndzone, currentBlackInEndzone, history, isWhiteMoving, piecesRemaining, isFirstAction, boardDictionary]
   );
   
 
   return (
-    <div className="boardDiv">
-      <div ref={boardRef} tabIndex={0}>
-        <Board
-          board={history[history.length - 1].board}
-          whiteInEndzone={currentWhiteInEndzone}
-          blackInEndzone={currentBlackInEndzone}
-          onSelect={select} // Pass select function as a prop
-        />
-        {showInput.visible && (
-          <input
-            ref={inputRef}
-            value={inputData.value}
-            onChange={handleChange}
-            type="number"
-            className="moveInput"
-            style={{ position: 'absolute', top: showInput.top, left: showInput.left }}
-            onKeyDown={handleInputSubmit}
+    <div className="gameDiv">
+      <div className="boardDiv">
+        <div ref={boardRef} tabIndex={0}>
+          <Board
+            board={history[history.length - 1].board}
+            whiteInEndzone={currentWhiteInEndzone}
+            blackInEndzone={currentBlackInEndzone}
+            onSelect={select} // Pass select function as a prop
           />
-        )}
-        <div className="game-information">
-          <p>You are playing as <b>{playerColor ?? "spectator"}</b></p>
-          <p>Current player: <b>{isWhiteMoving ? "White" : "Black"}</b></p>
-          <p>{piecesRemaining === DEFAULT_PIECES_REMAINING ? "" : "Pieces remaining: "}<b>{piecesRemaining === DEFAULT_PIECES_REMAINING ? "" : piecesRemaining}</b></p>
-          {errorMessage && <p className="error">{errorMessage}</p>}
+          {showInput.visible && (
+            <input
+              ref={inputRef}
+              value={inputData.value}
+              onChange={handleChange}
+              type="number"
+              className="moveInput"
+              style={{ position: 'absolute', top: showInput.top, left: showInput.left }}
+              onKeyDown={handleInputSubmit}
+            />
+          )}
+          <GameInformation 
+            playerColor={playerColor}
+            isWhiteMoving={isWhiteMoving} 
+            piecesRemaining={piecesRemaining}
+            errorMessage={errorMessage}
+          />
         </div>
       </div>
+      <button className="rules-toggle" onClick={toggleInstructions}>
+        <i className="fa fa-info" style={{ fontSize: "24px" }}></i>
+      </button>
+      {showInstructions && <Instructions />}
     </div>
   );
 }
