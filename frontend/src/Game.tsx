@@ -5,8 +5,21 @@ import {makeMove, GameInterface, convertBoardToString, convertStringToBoard, isV
 import { BOARD_SIZE, DEFAULT_PIECES_REMAINING } from './constants';
 
 
+// TODO: CURRENTLY THREEFOLD REPETITION WILL NOT WORK, SINCE THE HISTORY IS NOT SENT VIA THE API.
+// NEED TO RESTRUCTURE:
+//  1. API sends full history, in text form
+//  2. Remove dictionary. Simply scan the list for two instances of the board state. 
+// (This will be reasonably efficient, since the history is in text format)
+// 3. History is now in text form. Create and use currentGameState to update other states
 
-const Game = ({gameId} : any) => {
+
+interface GameProps {
+  gameId: string;
+  playerColor: string;
+  token: string;
+}
+
+const Game = ({gameId, playerColor, token}: GameProps) => {
   // State hooks
   const [history, setHistory] = useState([
     {
@@ -180,7 +193,7 @@ const Game = ({gameId} : any) => {
     }
   }, []);
 
-  // API calls
+  // API calls  
   async function loadGameState() {
     try {
       const response = await fetch(`http://localhost:3001/game/${gameId}`);
@@ -205,6 +218,7 @@ const Game = ({gameId} : any) => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({ boardCode, selected}),
       });
@@ -214,6 +228,8 @@ const Game = ({gameId} : any) => {
   }
 
   function select(row: number, col: number, isClick: boolean) {
+    if (isWhiteMoving ? playerColor === "black" : playerColor === "white") throw new Error("Not your turn.");
+
     if (isClick && !isFirstAction) return;
 
     if (isClick) {
@@ -397,6 +413,7 @@ const Game = ({gameId} : any) => {
           />
         )}
         <div className="game-information">
+          <p>You are playing as <b>{playerColor ?? "spectator"}</b></p>
           <p>Current player: <b>{isWhiteMoving ? "White" : "Black"}</b></p>
           <p>{piecesRemaining === DEFAULT_PIECES_REMAINING ? "" : "Pieces remaining: "}<b>{piecesRemaining === DEFAULT_PIECES_REMAINING ? "" : piecesRemaining}</b></p>
           {errorMessage && <p className="error">{errorMessage}</p>}
