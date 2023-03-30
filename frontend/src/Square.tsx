@@ -26,6 +26,11 @@ export function getPieceImagePath(pieceCode: string): string {
   return "";
 }
 
+function convertToDisplayText(pieceCode: string): string | null {
+  if (!pieceCode) return null;
+  return pieceCode.replace(/[wb]/g, '');
+}
+
 const Square: FC<SquareProps> = ({ pieces, row, col, color, onSelect }) => {
   const handleSelect = () => {
     onSelect(row, col, true);
@@ -42,7 +47,7 @@ const Square: FC<SquareProps> = ({ pieces, row, col, color, onSelect }) => {
       onClick={handleSelect}
     >
       <div className="square-contents">
-        <span className="piece-text">{pieces}</span>
+        <span className="piece-text">{convertToDisplayText(pieces)}</span>
         {pieces && (
           <img className="piece" src={getPieceImagePath(pieces)} alt={""}/>
         )}

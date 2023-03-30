@@ -91,9 +91,6 @@ app.post('/join', async (req, res) => {
   }
 });
 
-
-
-
 // Create a new game
 app.post('/game', async (req, res) => {
   const { boardCode, selected } = req.body;
