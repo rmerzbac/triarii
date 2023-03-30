@@ -97,7 +97,12 @@ app.post('/game', async (req, res) => {
   const id = uuidv4();
 
   try {
-    await knex('games').insert({ id, boardCode, selected });
+    // Insert a new game into the 'games' table
+    await knex('games').insert({ id });
+
+    // Insert the initial game state into the 'game_states' table
+    await knex('game_states').insert({ game_id: id, boardCode, selected });
+
     res.status(201).json({ id });
   } catch (err) {
     res.status(500).json({ error: 'Error creating a new game' });
@@ -110,14 +115,14 @@ app.put('/game/:id', isAuthenticated, async (req, res) => {
   const { boardCode, selected } = req.body;
 
   try {
-    await knex('games').where('id', id).update({ boardCode, selected });
+    await knex('game_states').insert({ game_id: id, boardCode, selected });
     res.sendStatus(204);
   } catch (err) {
     res.status(500).json({ error: 'Error updating the game state' });
   }
 });
 
-// Get a game state
+// Get all game states
 app.get('/game/:id', async (req, res) => {
   const { id } = req.params;
 
@@ -125,14 +130,21 @@ app.get('/game/:id', async (req, res) => {
     const game = await knex('games').where('id', id).first();
 
     if (game) {
-      res.status(200).json({ boardCode: game.boardCode, selected: game.selected });
+      // Get all game states from the 'game_states' table, ordered from most recent to least recent
+      const gameStates = await knex('game_states')
+        .where('game_id', id)
+        .orderBy('id', 'desc')
+        .select('boardCode', 'selected');
+
+      res.status(200).json(gameStates);
     } else {
       res.status(404).json({ error: 'Game not found' });
     }
   } catch (err) {
-    res.status(500).json({ error: 'Error retrieving the game state' });
+    res.status(500).json({ error: 'Error retrieving the game states' });
   }
 });
+
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);

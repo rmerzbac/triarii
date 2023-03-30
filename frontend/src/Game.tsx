@@ -203,7 +203,8 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
   async function loadGameState() {
     try {
       const response = await fetch(`http://localhost:3001/game/${gameId}`);
-      const { boardCode, selected } = await response.json();
+      const allBoards = await response.json();
+      const { boardCode, selected } = allBoards[0];
       // console.log(boardCode);
       const game = convertStringToBoard(boardCode);
       setHistory((prevHistory) => [game]);
