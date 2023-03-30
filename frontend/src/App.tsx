@@ -9,6 +9,7 @@ import {
 } from 'react-router-dom';
 import Title from './Title';
 import Game from './Game';
+import Instructions from './Instructions';
 
 const Home: React.FC<{ setPlayerColor: (color: string) => void; setToken: (token: string) => void }> = ({ setPlayerColor, setToken }) => {
   const navigate = useNavigate();
@@ -55,10 +56,10 @@ const Home: React.FC<{ setPlayerColor: (color: string) => void; setToken: (token
 
   return (
     <div>
-      Welcome to Triarii!
-      <button onClick={handleCreateNewGame}>
+      <button onClick={handleCreateNewGame} className="create-game-button">
         Create New Game
       </button>
+      <Instructions />
     </div>
   );
 };

@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@100;400;700&display=swap');
+
 * {
   font-family: "Montserrat",sans-serif;
   margin: 0;
@@ -8,10 +10,19 @@ body {
 }
 h1 {
   text-align: center;
+  margin: 12px;
 }
 a {
   text-decoration: none;
   color: black;
+}
+.create-game-button {
+  padding: 10px;
+  margin: 10px;
+  position: relative;
+  width: 60%;
+  left: 20%;
+  font-size: 20px;
 }
 .boardDiv {
   display: flex;
@@ -78,4 +89,45 @@ td.selected {
 .error {
   color: #e60000;
   font-weight: bold;
+}
+.instructions {
+  position: relative;
+  margin-top: 50px;
+  width: 60%;
+  left: 20%;
+}
+.instructions * {
+  margin-bottom: 8px;
+}
+.instructions a {
+  text-decoration: underline;
+}
+.instructions h4 {
+  font-size: 24px;
+}
+.instructions h5 {
+  font-size: 18px;
+}
+.image-formatter {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.image-formatter img {
+  margin-left: 10px;
+  width: 30%;
+}
+ol {
+  list-style-position: inside;
+  padding-left: 24px;
+}
+ul {
+  list-style-position: inside;
+  padding-left: 24px;
+}
+li ul {
+  margin-top: 8px;
+}
+li ol {
+  margin-top: 8px;
 }
