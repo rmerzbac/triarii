@@ -23,7 +23,7 @@ interface GameProps {
 
 const Game = ({gameId, playerColor, token}: GameProps) => {
   // State hooks
-  const [history, setHistory] = useState([
+  const [gameState, setGameState] = useState(
     {
       board: [
         [null, '6b', null, '6b', null, '6b'],
@@ -36,20 +36,19 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
       whiteInEndzone: 0,
       blackInEndzone: 0,
       isWhiteMoving: true,
-      piecesRemaining: 1000,
+      piecesRemaining: DEFAULT_PIECES_REMAINING,
       isFirstAction: true
-    },
-  ]);
+    });
   const [pollingInterval, setPollingInterval] = useState<any>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selected, setSelected] = useState<number[] | null>(null);
   const [nextSelection, setNextSelection] = useState<number[] | null>(null);
-  const [currentBoard, setCurrentBoard] = useState(history[history.length - 1].board);
-  const [currentWhiteInEndzone, setCurrentWhiteInEndzone] = useState(history[history.length - 1].whiteInEndzone);
-  const [currentBlackInEndzone, setCurrentBlackInEndzone] = useState(history[history.length - 1].blackInEndzone);
-  const [isWhiteMoving, setIsWhiteMoving] = useState(true);
-  const [piecesRemaining, setPiecesRemaining] = useState(DEFAULT_PIECES_REMAINING);
-  const [isFirstAction, setIsFirstAction] = useState(true);
+  const [currentBoard, setCurrentBoard] = useState(gameState.board);
+  const [currentWhiteInEndzone, setCurrentWhiteInEndzone] = useState(gameState.whiteInEndzone);
+  const [currentBlackInEndzone, setCurrentBlackInEndzone] = useState(gameState.blackInEndzone);
+  const [isWhiteMoving, setIsWhiteMoving] = useState(gameState.isWhiteMoving);
+  const [piecesRemaining, setPiecesRemaining] = useState(gameState.piecesRemaining);
+  const [isFirstAction, setIsFirstAction] = useState(gameState.isFirstAction);
   const [showInput, setShowInput] = useState({ visible: false, top: 0, left: 0 });
   const [inputData, setInputData] = useState({ value: "" });
   const [boardDictionary, setBoardDictionary] = useState<Record<string, number>>({});
@@ -83,10 +82,10 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
       if (piecesRemaining === DEFAULT_PIECES_REMAINING) throw new Error("No move made.");
       selectNext(null);
 
-      const nextGameState = _.cloneDeep(history[history.length - 1]);
+      const nextGameState = _.cloneDeep(gameState);
       endTurn(nextGameState);
 
-      setHistory((prevHistory) => [...prevHistory, nextGameState]);
+      setGameState(() => nextGameState);
       const stringifiedBoard = convertBoardToString(nextGameState);
 
       updateDictionary(stringifiedBoard, (newBoardDictionary) => {
@@ -116,7 +115,7 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
     selectNext(arrowCode);
     showInputBox(selected[0], selected[1]);
     event.preventDefault();
-  }, [selected, nextSelection, history]);
+  }, [selected, nextSelection, gameState]);
 
   const handleChange: ChangeEventHandler<HTMLInputElement> = (event) => {
     const target = event.target as HTMLInputElement;
@@ -142,13 +141,13 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
 
   // useEffect hooks
   useEffect(() => {
-    setCurrentBoard(history[history.length - 1].board);
-    setCurrentWhiteInEndzone(history[history.length - 1].whiteInEndzone);
-    setCurrentBlackInEndzone(history[history.length - 1].blackInEndzone);
-    setIsWhiteMoving(history[history.length - 1].isWhiteMoving);
-    setPiecesRemaining(history[history.length - 1].piecesRemaining);
-    setIsFirstAction(history[history.length - 1].isFirstAction);
-  }, [history]);
+    setCurrentBoard(gameState.board);
+    setCurrentWhiteInEndzone(gameState.whiteInEndzone);
+    setCurrentBlackInEndzone(gameState.blackInEndzone);
+    setIsWhiteMoving(gameState.isWhiteMoving);
+    setPiecesRemaining(gameState.piecesRemaining);
+    setIsFirstAction(gameState.isFirstAction);
+  }, [gameState]);
 
   /*useEffect(() => {
     console.log('Updated history:', history);
@@ -207,7 +206,7 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
       const { boardCode, selected } = allBoards[0];
       // console.log(boardCode);
       const game = convertStringToBoard(boardCode);
-      setHistory((prevHistory) => [game]);
+      setGameState(() => game);
 
       const parsedSelected = selected
       ? selected.split(",").map((value: string) => parseInt(value, 10))
@@ -240,9 +239,9 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
     if (isClick && !isFirstAction) return;
 
     if (isClick) {
-      const nextGameState = _.cloneDeep(history[history.length - 1]);
+      const nextGameState = _.cloneDeep(gameState);
       const stringifiedBoard = convertBoardToString(nextGameState);
-      setHistory((prevHistory) => [...prevHistory, nextGameState]);
+      setGameState(() => nextGameState);
       updateGameState(stringifiedBoard, row + "," + col);
     }
   
@@ -400,7 +399,7 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
           nextGameState.isFirstAction = false;
         }
 
-        setHistory((prevHistory) => [...prevHistory, nextGameState]);
+        setGameState(() => nextGameState);
         const stringifiedBoard = convertBoardToString(nextGameState);
 
         updateDictionary(stringifiedBoard, (newBoardDictionary) => {
@@ -416,7 +415,7 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
         setErrorMessage(e.message);
       }
     },
-    [selected, nextSelection, currentBoard, currentWhiteInEndzone, currentBlackInEndzone, history, isWhiteMoving, piecesRemaining, isFirstAction, boardDictionary]
+    [selected, nextSelection, currentBoard, currentWhiteInEndzone, currentBlackInEndzone, gameState, isWhiteMoving, piecesRemaining, isFirstAction, boardDictionary]
   );
   
 
@@ -425,7 +424,7 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
       <div className="boardDiv">
         <div ref={boardRef} tabIndex={0}>
           <Board
-            board={history[history.length - 1].board}
+            board={gameState.board}
             whiteInEndzone={currentWhiteInEndzone}
             blackInEndzone={currentBlackInEndzone}
             onSelect={select} // Pass select function as a prop
