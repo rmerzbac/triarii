@@ -39,6 +39,11 @@ input {
 }
 input {
   z-index: 32;
+  width: 18px;
+  border: 2px solid black;
+  border-radius: 8px;
+  position: absolute;
+  outline: none;
 }
 input::-webkit-outer-spin-button,
 input::-webkit-inner-spin-button {

@@ -4,4 +4,4 @@ export const DEFAULT_PIECES_REMAINING = 1000; // Arbitrary number larger than th
 export const WHITE_PINNING = 1;
 export const BLACK_PINNING = -1;
 export const NO_PIN = 0;
-export const POLL_REQUEST_RATE = 1000;
+export const POLL_REQUEST_RATE = 500;

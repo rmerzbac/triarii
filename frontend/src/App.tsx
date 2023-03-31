@@ -15,8 +15,8 @@ const Home: React.FC<{ setPlayerColor: (color: string) => void; setToken: (token
   const navigate = useNavigate();
 
   const handleCreateNewGame = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    const boardCode =
-      '//8w/6b/_/6b/_/6b//4b/_/4b/_/4b/_//_/2b/_/2b/_/2b//2w/_/2w/_/2w/_//_/4w/_/4w/_/4w//6w/_/6w/_/6w/8b//0,0,true,1000,true//';
+    const boardCode = '//_/6b/_/6b/_/6b//4b/_/4b/_/4b/_//_/2b/_/2b/_/2b//2w/_/2w/_/2w/_//_/4w/_/4w/_/4w//6w/_/6w/_/6w/_//0,0,true,1000,true//';
+    // const boardCode = '//25w/6b/_/6b/_/6b//4b/_/4b/_/4b/_//_/2b/_/2b/_/2b//2w/_/2w/_/2w/_//_/4w/_/4w/_/4w//6w/_/6w/_/6w/25b//0,0,true,1000,true//';
   
     try {
       // Create a new game
@@ -44,7 +44,6 @@ const Home: React.FC<{ setPlayerColor: (color: string) => void; setToken: (token
       const joinData = await joinResponse.json();
       setPlayerColor(joinData.playerColor);
       setToken(joinData.token);
-      console.log("Create and join token: " + joinData.token);
   
       navigate(`/game/${id}`);
     } catch (error) {
@@ -72,7 +71,6 @@ const GameWrapper: React.FC<{ playerColor: string; token: string; setPlayerColor
   useEffect(() => {
     const joinGame = async () => {
       try {
-        console.log("Pre join token: " + token);
         const joinResponse = await fetch('http://localhost:3001/join', {
           method: 'POST',
           headers: {
@@ -84,7 +82,6 @@ const GameWrapper: React.FC<{ playerColor: string; token: string; setPlayerColor
         const joinData = await joinResponse.json();
         setPlayerColor(joinData.playerColor);
         setToken(joinData.token);
-        console.log("Just join token: " + token);
       } catch (error) {
         console.error('Error joining the game:', error);
       }
@@ -104,7 +101,6 @@ const App: React.FC = () => {
   const [token, setToken] = useState('');
 
   useEffect(() => {
-    console.log('Updated token:', token);
   }, [token]);
 
   return (
