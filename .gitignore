@@ -8,6 +8,9 @@
 .pnp.js
 /backend/.env
 
+# databases
+/backend/triarii.db
+
 # testing
 /coverage
 
