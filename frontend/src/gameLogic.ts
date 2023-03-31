@@ -1,4 +1,5 @@
 import { BOARD_SIZE, WHITE_PINNING, BLACK_PINNING, NO_PIN, DEFAULT_PIECES_REMAINING } from './constants';
+import _ from 'lodash';
 
 interface SquareStatus {
   numWhitePieces: number;
@@ -36,7 +37,6 @@ export function convertBoardToString(boardState: GameInterface): string {
   str += boardState.piecesRemaining + ",";
   str += boardState.isFirstAction + "//";
 
-  console.log(str);
   return str; 
 }
 
@@ -230,7 +230,6 @@ function conditionalAddToQueue(row: number, col: number, stack: [number, number]
 
 export function isViolatingFourOrFewerCondition(board: (string | null)[][], isWhite: boolean) : boolean {
   const convertedBoard = convertBoardToBooleans(board, !isWhite);
-  console.log(convertedBoard);
   
   const stack : [number, number][] = [];
   const visited : Set<string> = new Set();
@@ -251,3 +250,54 @@ export function isViolatingFourOrFewerCondition(board: (string | null)[][], isWh
 
   return true;
 }
+
+
+// --------------------
+
+export const isThreeFoldRepetition = (allBoards: GameInterface[]): boolean => {
+  if (allBoards.length < 5) return false;
+  let counter = 0;
+  for (let i = 1; i < allBoards.length; i++) {
+    if (allBoards[0] === allBoards[i]) {
+      counter++;
+      if (counter === 2) return true;
+    }
+  }
+  return false;
+};
+
+export const processNewGameState = (
+  allBoards: any,
+  setGameState: (callback: () => GameInterface) => void,
+  select: (row: number, col: number, isClick: boolean) => void,
+  endGame: (isWinnerWhite: boolean | null, isFOFViolation: boolean) => void,
+) => {
+  const { boardCode, selected } = allBoards[0];
+  const game = convertStringToBoard(boardCode);
+  setGameState(() => game);
+
+  const parsedSelected = selected
+    ? selected.split(',').map((value: string) => parseInt(value, 10))
+    : [-1, -1];
+  select(parseInt(parsedSelected[0], 10), parseInt(parsedSelected[1], 10), false);
+
+  if (isThreeFoldRepetition(allBoards)) {
+    endGame(null, false); // Draw
+  }
+
+  if (game.whiteInEndzone >= 6) endGame(true, false);
+  if (game.blackInEndzone >= 6) endGame(true, false);
+
+  if (isViolatingFourOrFewerCondition(game.board, true)) {
+    endGame(false, true);
+  }
+  if (isViolatingFourOrFewerCondition(game.board, false)) {
+    endGame(true, true);
+  }
+};
+
+export const endTurn = (gameState: GameInterface) => {
+  gameState.isWhiteMoving = !gameState.isWhiteMoving;
+  gameState.piecesRemaining = DEFAULT_PIECES_REMAINING;
+  gameState.isFirstAction = true;
+};

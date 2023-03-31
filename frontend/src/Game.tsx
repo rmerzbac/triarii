@@ -1,18 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef, ChangeEventHandler} from 'react';
 import _ from 'lodash';
-import Board from './Board';
-import GameInformation from './GameInformation';
+import PresentationLayer from './PresentationLayer';
 import {makeMove, GameInterface, convertBoardToString, convertStringToBoard, isViolatingFourOrFewerCondition} from './gameLogic';
-import { BOARD_SIZE, DEFAULT_PIECES_REMAINING } from './constants';
-import Instructions from './Instructions';
-
-
-// TODO: CURRENTLY THREEFOLD REPETITION WILL NOT WORK, SINCE THE HISTORY IS NOT SENT VIA THE API.
-// NEED TO RESTRUCTURE:
-//  1. API sends full history, in text form
-//  2. Remove dictionary. Simply scan the list for two instances of the board state. 
-// (This will be reasonably efficient, since the history is in text format)
-// 3. History is now in text form. Create and use currentGameState to update other states
+import { BOARD_SIZE, DEFAULT_PIECES_REMAINING, POLL_REQUEST_RATE } from './constants';
+import {updateGameState, loadGameState} from './api';
 
 
 interface GameProps {
@@ -43,16 +34,10 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [selected, setSelected] = useState<number[] | null>(null);
   const [nextSelection, setNextSelection] = useState<number[] | null>(null);
-  const [currentBoard, setCurrentBoard] = useState(gameState.board);
-  const [currentWhiteInEndzone, setCurrentWhiteInEndzone] = useState(gameState.whiteInEndzone);
-  const [currentBlackInEndzone, setCurrentBlackInEndzone] = useState(gameState.blackInEndzone);
-  const [isWhiteMoving, setIsWhiteMoving] = useState(gameState.isWhiteMoving);
-  const [piecesRemaining, setPiecesRemaining] = useState(gameState.piecesRemaining);
-  const [isFirstAction, setIsFirstAction] = useState(gameState.isFirstAction);
   const [showInput, setShowInput] = useState({ visible: false, top: 0, left: 0 });
   const [inputData, setInputData] = useState({ value: "" });
-  const [boardDictionary, setBoardDictionary] = useState<Record<string, number>>({});
   const [showInstructions, setShowInstructions] = useState(false);
+  const [gameOver, setGameOver] = useState<string | null>(null)
 
   // Refs
   const inputRef = useRef<HTMLInputElement>(null);
@@ -79,7 +64,7 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
     if (event.code === 'Space') {
       event.preventDefault();
-      if (piecesRemaining === DEFAULT_PIECES_REMAINING) throw new Error("No move made.");
+      if (gameState.piecesRemaining === DEFAULT_PIECES_REMAINING) throw new Error("No move made.");
       selectNext(null);
 
       const nextGameState = _.cloneDeep(gameState);
@@ -88,13 +73,9 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
       setGameState(() => nextGameState);
       const stringifiedBoard = convertBoardToString(nextGameState);
 
-      updateDictionary(stringifiedBoard, (newBoardDictionary) => {
-        if (newBoardDictionary[stringifiedBoard] >= 3) endGame(null); // Threefold repetition
-      });
-
       console.log(stringifiedBoard);
 
-      updateGameState(stringifiedBoard, null);
+      updateGameState(gameId, token, stringifiedBoard, null);
       return;
     }
 
@@ -141,47 +122,35 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
 
   // useEffect hooks
   useEffect(() => {
-    setCurrentBoard(gameState.board);
-    setCurrentWhiteInEndzone(gameState.whiteInEndzone);
-    setCurrentBlackInEndzone(gameState.blackInEndzone);
-    setIsWhiteMoving(gameState.isWhiteMoving);
-    setPiecesRemaining(gameState.piecesRemaining);
-    setIsFirstAction(gameState.isFirstAction);
-  }, [gameState]);
-
-  /*useEffect(() => {
-    console.log('Updated history:', history);
-  }, [history]);*/
-
-  useEffect(() => {
-    console.log('Updated dictionary:', boardDictionary);
-  }, [boardDictionary]);
-
-  useEffect(() => {
     const fetchGameState = async () => {
-      await loadGameState();
+      await loadGameState(gameId);
     };
   
     if (gameId) {
       fetchGameState();
     }
-  }, [gameId]);  
+  }, [gameId, loadGameState]);  
 
   useEffect(() => {
     if (!pollingInterval) {
-      const interval = setInterval(() => {
-        loadGameState();
-      }, 1000); // Polling interval in milliseconds (1000 ms = 1 second)
+      const interval = setInterval(async () => {
+        try {
+          const allBoards = await loadGameState(gameId);
+          processNewGameState(allBoards);
+        } catch (error) {
+          console.error('Error loading game state:', error);
+        }
+      }, POLL_REQUEST_RATE);
       setPollingInterval(interval);
     }
-
+  
     return () => {
       if (pollingInterval) {
         clearInterval(pollingInterval);
         setPollingInterval(null);
       }
     };
-  }, [pollingInterval]);
+  }, [pollingInterval, loadGameState]);
 
   useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
@@ -198,51 +167,59 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
     }
   }, []);
 
-  // API calls  
-  async function loadGameState() {
-    try {
-      const response = await fetch(`http://localhost:3001/game/${gameId}`);
-      const allBoards = await response.json();
-      const { boardCode, selected } = allBoards[0];
-      // console.log(boardCode);
-      const game = convertStringToBoard(boardCode);
-      setGameState(() => game);
+  const processNewGameState = (allBoards : any) => {
+    const { boardCode, selected } = allBoards[0];
+    // console.log(boardCode);
+    const game = convertStringToBoard(boardCode);
 
-      const parsedSelected = selected
+    const parsedSelected = selected
       ? selected.split(",").map((value: string) => parseInt(value, 10))
       : [-1, -1];
-      select(parseInt(parsedSelected[0], 10), parseInt(parsedSelected[1], 10), false);
-    } catch (error) {
-      console.error('Error loading game state:', error);
+    select(parseInt(parsedSelected[0], 10), parseInt(parsedSelected[1], 10), false);
+
+    if (isThreeFoldRepetition(allBoards)) {
+      endGame(null, false); // Draw
     }
+
+    if (game.whiteInEndzone >= 6) {
+      console.log("White has 6 in endzone");
+      endGame(true, false);
+    }
+    if (game.blackInEndzone >= 6) {
+      endGame(false, false);
+    }
+    if (isViolatingFourOrFewerCondition(game.board, true)) {
+      endGame(false, true);
+    }
+    if (isViolatingFourOrFewerCondition(game.board, false)) {
+      endGame(true, true);
+    }
+
+    setGameState(() => game);
   }
-  
-  async function updateGameState(boardCode : string, selected : string | null) {
-    console.log("PUT:" + selected);
-    try {
-      await fetch(`http://localhost:3001/game/${gameId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({ boardCode, selected}),
-      });
-    } catch (error) {
-      console.error('Error updating game state:', error);
+
+  const isThreeFoldRepetition = (allBoards: GameInterface[]) : boolean => {
+    if (allBoards.length < 5) return false;
+    let counter = 0;
+    for (let i = 1; i < allBoards.length; i++) {
+      if (gameState == allBoards[i]) {
+        counter++;
+        if (counter === 2) return true;
+      }
     }
+    return false;
   }
 
   const select = (row: number, col: number, isClick: boolean) => {
-    if (isWhiteMoving ? playerColor === "black" : playerColor === "white") throw new Error("Not your turn.");
+    if (gameState.isWhiteMoving ? playerColor === "black" : playerColor === "white") throw new Error("Not your turn.");
 
-    if (isClick && !isFirstAction) return;
+    if (isClick && !gameState.isFirstAction) return;
 
     if (isClick) {
       const nextGameState = _.cloneDeep(gameState);
       const stringifiedBoard = convertBoardToString(nextGameState);
       setGameState(() => nextGameState);
-      updateGameState(stringifiedBoard, row + "," + col);
+      updateGameState(gameId, token, stringifiedBoard, row + "," + col);
     }
   
     setSelected(prevSelected => {
@@ -278,9 +255,9 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
 
       if (nextCol < 0 || nextCol >= BOARD_SIZE) return null;
       
-      if (nextRow === BOARD_SIZE && !isWhiteMoving) {
+      if (nextRow === BOARD_SIZE && !gameState.isWhiteMoving) {
         document.getElementById("endzone-black")?.classList.add("selected-next");
-      } else if (nextRow === -1 && isWhiteMoving) {
+      } else if (nextRow === -1 && gameState.isWhiteMoving) {
         document.getElementById("endzone-white")?.classList.add("selected-next");
       } else {
         document.getElementById(nextRow + "," + nextCol)?.classList.add("selected-next");
@@ -288,45 +265,23 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
       return [nextRow, nextCol];
     });
   }
-  
-  const updateDictionary = (
-    hashedBoard: string,
-    callback: (updatedBoardDictionary: Record<string, number>) => void
-  ): void => {
-    setBoardDictionary(prevBoardDictionary => {
-      let updatedBoardDictionary: Record<string, number>;
-      if (prevBoardDictionary.hasOwnProperty(hashedBoard)) {
-        updatedBoardDictionary = {
-          ...prevBoardDictionary,
-          [hashedBoard]: prevBoardDictionary[hashedBoard] + 1,
-        };
-      } else {
-        updatedBoardDictionary = {
-          ...prevBoardDictionary,
-          [hashedBoard]: 1,
-        };
-      }
-      callback(updatedBoardDictionary);
-      return updatedBoardDictionary;
-    });
-  };
 
   const endTurn = (gameState : GameInterface) => {
-    gameState.isWhiteMoving = !isWhiteMoving;
+    gameState.isWhiteMoving = !gameState.isWhiteMoving;
     gameState.piecesRemaining = 1000;
     gameState.isFirstAction = true;
     select(-1, -1, false);
   }
 
-  const endGame = (isWinnerWhite: boolean | null) => {
+  const endGame = useCallback((isWinnerWhite : boolean | null, isFOFViolation : boolean) => {
     if (isWinnerWhite === null) {
-      alert("Draw");
-    } else if (isWinnerWhite) {
-      alert("White wins!");
+      setGameOver("Draw (threefold repetition).");
     } else {
-      alert("Black wins!");
+      const winner = isWinnerWhite ? "White wins!" : "Black wins!"
+      setGameOver(winner + (isFOFViolation ? " (Violation of \"Four or Fewer\" rule.)" : ""));
     }
-  }
+    console.log(gameOver);
+  },[gameOver]);
 
   const move = useCallback(
     (movingStackSize: number) => {
@@ -337,30 +292,30 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
         if (selected === null) throw new Error("No square selected.");
         const row = selected[0];
         const col = selected[1];
-        const nextBoard = _.cloneDeep(currentBoard);
+        const nextBoard = _.cloneDeep(gameState.board);
         const stack = nextBoard[row][col];
         if (stack === null) return;
 
         const [nextRow, nextCol] = nextSelection;
         
-        if (piecesRemaining < movingStackSize) movingStackSize = piecesRemaining;
+        if (gameState.piecesRemaining < movingStackSize) movingStackSize = gameState.piecesRemaining;
 
         if (nextCol < 0 || nextCol >= BOARD_SIZE) throw new Error("Illegal move (out of bounds).");
-        if (nextRow === BOARD_SIZE && isWhiteMoving) throw new Error("Illegal move (out of bounds).");
-        if (nextRow === -1 && !isWhiteMoving) throw new Error("Illegal move (out of bounds).");
+        if (nextRow === BOARD_SIZE && gameState.isWhiteMoving) throw new Error("Illegal move (out of bounds).");
+        if (nextRow === -1 && !gameState.isWhiteMoving) throw new Error("Illegal move (out of bounds).");
 
         let nextSquare = null;
-        if (!(nextRow === BOARD_SIZE && !isWhiteMoving) &&
-          !(nextRow === -1 && isWhiteMoving))
+        if (!(nextRow === BOARD_SIZE && !gameState.isWhiteMoving) &&
+          !(nextRow === -1 && gameState.isWhiteMoving))
           nextSquare = nextBoard[nextRow][nextCol];
         
-        const makeMoveResponse = makeMove(movingStackSize, nextBoard[row][col]!, nextSquare ?? "", isWhiteMoving, isFirstAction);
+        const makeMoveResponse = makeMove(movingStackSize, nextBoard[row][col]!, nextSquare ?? "", gameState.isWhiteMoving, gameState.isFirstAction);
         
-        let endzoneWhite = currentWhiteInEndzone;
-        let endzoneBlack = currentBlackInEndzone;
-        if (nextRow === BOARD_SIZE && !isWhiteMoving) {
+        let endzoneWhite = gameState.whiteInEndzone;
+        let endzoneBlack = gameState.blackInEndzone;
+        if (nextRow === BOARD_SIZE && !gameState.isWhiteMoving) {
           endzoneBlack += movingStackSize;
-        } else if (nextRow === -1 && isWhiteMoving) {
+        } else if (nextRow === -1 && gameState.isWhiteMoving) {
           endzoneWhite += movingStackSize;
         } else {
           nextBoard[nextRow][nextCol] = makeMoveResponse.nextSquareCode;
@@ -374,21 +329,9 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
         let nextGameState : GameInterface = {board: nextBoard,
           whiteInEndzone: endzoneWhite,
           blackInEndzone: endzoneBlack,
-          isWhiteMoving,
-          piecesRemaining,
-          isFirstAction};
-
-        if (endzoneWhite >= 6)
-          endGame(true);
-        if (endzoneBlack >= 6)
-          endGame(false);
-
-        if (isViolatingFourOrFewerCondition(nextBoard, true)) {
-          endGame(false);
-        }
-        if (isViolatingFourOrFewerCondition(nextBoard, false)) {
-          endGame(true);
-        }
+          isWhiteMoving: gameState.isWhiteMoving,
+          piecesRemaining: gameState.piecesRemaining,
+          isFirstAction: gameState.isFirstAction};
 
         let nextSelectedForJSON : string | null = nextRow + "," + nextCol;
         if (isTurnOver || movingStackSize - makeMoveResponse.piecesUsedInMove < 1 || nextRow === BOARD_SIZE || nextRow === -1) {
@@ -402,57 +345,40 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
         setGameState(() => nextGameState);
         const stringifiedBoard = convertBoardToString(nextGameState);
 
-        updateDictionary(stringifiedBoard, (newBoardDictionary) => {
-          if (newBoardDictionary[stringifiedBoard] >= 3) endGame(null); // Threefold repetition
-        });
-
         console.log(stringifiedBoard);
 
-        updateGameState(stringifiedBoard, nextSelectedForJSON);
+        updateGameState(gameId, token, stringifiedBoard, nextSelectedForJSON);
 
       } catch (e : any) {
         console.error(e);
         setErrorMessage(e.message);
       }
     },
-    [selected, nextSelection, currentBoard, currentWhiteInEndzone, currentBlackInEndzone, gameState, isWhiteMoving, piecesRemaining, isFirstAction, boardDictionary]
+    [selected, nextSelection, gameState]
   );
   
 
   return (
-    <div className="gameDiv">
-      <div className="boardDiv">
-        <div ref={boardRef} tabIndex={0}>
-          <Board
-            board={gameState.board}
-            whiteInEndzone={currentWhiteInEndzone}
-            blackInEndzone={currentBlackInEndzone}
-            onSelect={select} // Pass select function as a prop
-          />
-          {showInput.visible && (
-            <input
-              ref={inputRef}
-              value={inputData.value}
-              onChange={handleChange}
-              type="number"
-              className="moveInput"
-              style={{ position: 'absolute', top: showInput.top, left: showInput.left }}
-              onKeyDown={handleInputSubmit}
-            />
-          )}
-          <GameInformation 
-            playerColor={playerColor}
-            isWhiteMoving={isWhiteMoving} 
-            piecesRemaining={piecesRemaining}
-            errorMessage={errorMessage}
-          />
-        </div>
-      </div>
-      <button className="rules-toggle" onClick={toggleInstructions}>
-        <i className="fa fa-info" style={{ fontSize: "24px" }}></i>
-      </button>
-      {showInstructions && <Instructions />}
-    </div>
+    <PresentationLayer
+      boardRef={boardRef}
+      currentBoard={gameState.board}
+      currentWhiteInEndzone={gameState.whiteInEndzone}
+      currentBlackInEndzone={gameState.blackInEndzone}
+      isWhiteMoving={gameState.isWhiteMoving}
+      piecesRemaining={gameState.piecesRemaining}
+      errorMessage={errorMessage}
+      showInput={showInput}
+      inputData={inputData}
+      inputRef={inputRef}
+      handleInputSubmit={handleInputSubmit}
+      handleChange={handleChange}
+      playerColor={playerColor}
+      showInstructions={showInstructions}
+      toggleInstructions={toggleInstructions}
+      select={select}
+      nextSelection={nextSelection}
+      gameOver={gameOver}
+    />
   );
 }
 

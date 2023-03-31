@@ -2,8 +2,7 @@ import React, { FC } from "react";
 import Square from "./Square";
 import Endzone from "./Endzone";
 
-
-interface BoardProps {
+export interface BoardProps {
   board: any;
   whiteInEndzone: number;
   blackInEndzone: number;
