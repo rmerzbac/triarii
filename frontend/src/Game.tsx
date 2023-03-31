@@ -402,6 +402,7 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
         let nextSelectedForJSON : string | null = nextRow + "," + nextCol;
         if (isTurnOver || movingStackSize - makeMoveResponse.piecesUsedInMove < 1 || nextRow === BOARD_SIZE || nextRow === -1) {
           endTurn(nextGameState);
+          hideEndTurnButton();
           nextSelectedForJSON = null;
         } else {
           showEndTurnButton(nextRow, nextCol);
