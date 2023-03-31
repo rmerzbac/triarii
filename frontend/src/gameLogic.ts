@@ -234,7 +234,10 @@ export function isViolatingFourOrFewerCondition(board: (string | null)[][], isWh
   const stack : [number, number][] = [];
   const visited : Set<string> = new Set();
   
-  isWhite ? stack.push([0, 0]) : stack.push([BOARD_SIZE - 1, BOARD_SIZE - 1]); // starting position
+  const startingPosition = isWhite ? 0 : BOARD_SIZE - 1;
+  for (let i = 0; i < BOARD_SIZE; i++) {
+    stack.push([startingPosition, i]);
+  }
 
   while (stack.length > 0) {
     const [row, col] = stack.pop() as [number, number];
@@ -251,10 +254,7 @@ export function isViolatingFourOrFewerCondition(board: (string | null)[][], isWh
   return true;
 }
 
-
-// --------------------
-
-export const isThreeFoldRepetition = (allBoards: GameInterface[]): boolean => {
+export const isThreefoldRepetition = (allBoards: GameInterface[]): boolean => {
   if (allBoards.length < 5) return false;
   let counter = 0;
   for (let i = 1; i < allBoards.length; i++) {
@@ -264,40 +264,4 @@ export const isThreeFoldRepetition = (allBoards: GameInterface[]): boolean => {
     }
   }
   return false;
-};
-
-export const processNewGameState = (
-  allBoards: any,
-  setGameState: (callback: () => GameInterface) => void,
-  select: (row: number, col: number, isClick: boolean) => void,
-  endGame: (isWinnerWhite: boolean | null, isFOFViolation: boolean) => void,
-) => {
-  const { boardCode, selected } = allBoards[0];
-  const game = convertStringToBoard(boardCode);
-  setGameState(() => game);
-
-  const parsedSelected = selected
-    ? selected.split(',').map((value: string) => parseInt(value, 10))
-    : [-1, -1];
-  select(parseInt(parsedSelected[0], 10), parseInt(parsedSelected[1], 10), false);
-
-  if (isThreeFoldRepetition(allBoards)) {
-    endGame(null, false); // Draw
-  }
-
-  if (game.whiteInEndzone >= 6) endGame(true, false);
-  if (game.blackInEndzone >= 6) endGame(true, false);
-
-  if (isViolatingFourOrFewerCondition(game.board, true)) {
-    endGame(false, true);
-  }
-  if (isViolatingFourOrFewerCondition(game.board, false)) {
-    endGame(true, true);
-  }
-};
-
-export const endTurn = (gameState: GameInterface) => {
-  gameState.isWhiteMoving = !gameState.isWhiteMoving;
-  gameState.piecesRemaining = DEFAULT_PIECES_REMAINING;
-  gameState.isFirstAction = true;
 };

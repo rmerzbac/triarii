@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, ChangeEventHandler} from 'react';
 import _ from 'lodash';
 import PresentationLayer from './PresentationLayer';
-import {makeMove, GameInterface, convertBoardToString, convertStringToBoard, isViolatingFourOrFewerCondition} from './gameLogic';
+import {makeMove, GameInterface, convertBoardToString, convertStringToBoard, isThreefoldRepetition, isViolatingFourOrFewerCondition} from './gameLogic';
 import { BOARD_SIZE, DEFAULT_PIECES_REMAINING, POLL_REQUEST_RATE } from './constants';
 import {updateGameState, loadGameState} from './api';
 
@@ -13,7 +13,7 @@ interface GameProps {
 }
 
 const Game = ({gameId, playerColor, token}: GameProps) => {
-  // State hooks
+  // ------------------ STATE HOOKS ---------------------
   const [gameState, setGameState] = useState(
     {
       board: [
@@ -39,11 +39,11 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
   const [showInstructions, setShowInstructions] = useState(false);
   const [gameOver, setGameOver] = useState<string | null>(null)
 
-  // Refs
+  // ------------------ REFS ---------------------
   const inputRef = useRef<HTMLInputElement>(null);
   const boardRef = useRef<HTMLDivElement>(null);
 
-  // Key event handlers
+  // ------------------ EVENT HANDLERS ---------------------
   const handleInputSubmit = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter') {
       event.preventDefault();
@@ -65,7 +65,7 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
     if (event.code === 'Space') {
       event.preventDefault();
       if (gameState.piecesRemaining === DEFAULT_PIECES_REMAINING) throw new Error("No move made.");
-      selectNext(null);
+      deselectAll();
 
       const nextGameState = _.cloneDeep(gameState);
       endTurn(nextGameState);
@@ -79,7 +79,7 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
       return;
     }
 
-    if (inputRef.current === document.activeElement) return;
+    /* if (inputRef.current === document.activeElement) return;
   
     if (!selected) return;
     
@@ -95,7 +95,7 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
     }
     selectNext(arrowCode);
     showInputBox(selected[0], selected[1]);
-    event.preventDefault();
+    event.preventDefault(); */
   }, [selected, nextSelection, gameState]);
 
   const handleChange: ChangeEventHandler<HTMLInputElement> = (event) => {
@@ -106,7 +106,10 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
   };
 
   const showInputBox = (row: number, col: number) => {
-    const square = document.getElementById(row + ',' + col);
+    let square;
+    if (row === -1) square = document.getElementById("endzone-white");
+    else if (row === BOARD_SIZE) square = document.getElementById("endzone-black");
+    else square = document.getElementById(row + ',' + col);
     if (square) {
       const rect = square.getBoundingClientRect();
       setShowInput({ visible: true, top: rect.top + rect.height, left: rect.left });
@@ -120,7 +123,7 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
     setShowInstructions(!showInstructions);
   };
 
-  // useEffect hooks
+  // ------------------ USEEFFECT HOOKS ---------------------
   useEffect(() => {
     const fetchGameState = async () => {
       await loadGameState(gameId);
@@ -167,17 +170,19 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
     }
   }, []);
 
+  // ------------------ GAME STATE PROCESSING ---------------------
   const processNewGameState = (allBoards : any) => {
     const { boardCode, selected } = allBoards[0];
     // console.log(boardCode);
     const game = convertStringToBoard(boardCode);
 
-    const parsedSelected = selected
-      ? selected.split(",").map((value: string) => parseInt(value, 10))
-      : [-1, -1];
-    select(parseInt(parsedSelected[0], 10), parseInt(parsedSelected[1], 10), false);
+    const parsedSelected = selected ?
+      selected.split(",").map((value: string) => parseInt(value, 10)) : 
+      [-1, -1];
+    
+    select(parseInt(parsedSelected[0], 10), parseInt(parsedSelected[1], 10));
 
-    if (isThreeFoldRepetition(allBoards)) {
+    if (isThreefoldRepetition(allBoards)) {
       endGame(null, false); // Draw
     }
 
@@ -198,79 +203,108 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
     setGameState(() => game);
   }
 
-  const isThreeFoldRepetition = (allBoards: GameInterface[]) : boolean => {
-    if (allBoards.length < 5) return false;
-    let counter = 0;
-    for (let i = 1; i < allBoards.length; i++) {
-      if (gameState == allBoards[i]) {
-        counter++;
-        if (counter === 2) return true;
-      }
-    }
-    return false;
+  // ------------------ SELECTION ---------------------
+  const isAdjacent = (row1: number, col1: number, row2: number, col2: number) : boolean => {
+    // Endzones
+    if (row1 === 0 && row2 === -1) return true;
+    if (row2 === 0 && row1 === -1) return true;
+    if (row1 === BOARD_SIZE && row2 === BOARD_SIZE - 1) return true;
+    if (row2 === BOARD_SIZE && row1 === BOARD_SIZE - 1) return true;
+
+    const rowAdjacency = (row1 - row2) ** 2; // 1 = adjacent, 0 = same
+    const colAdjacency = (col1 - col2) ** 2
+    return (rowAdjacency + colAdjacency) == 1; // One should be 1, one should be 0
   }
 
-  const select = (row: number, col: number, isClick: boolean) => {
-    if (gameState.isWhiteMoving ? playerColor === "black" : playerColor === "white") throw new Error("Not your turn.");
-
-    if (isClick && !gameState.isFirstAction) return;
-
-    if (isClick) {
-      const nextGameState = _.cloneDeep(gameState);
-      const stringifiedBoard = convertBoardToString(nextGameState);
-      setGameState(() => nextGameState);
-      updateGameState(gameId, token, stringifiedBoard, row + "," + col);
-    }
-  
-    setSelected(prevSelected => {
+  const select = (row: number, col: number) => {
+    setSelected((prevSelected) => {
       if (prevSelected && prevSelected[0] !== null && prevSelected[1] !== null) {
         document.getElementById(prevSelected[0] + "," + prevSelected[1])?.classList.remove("selected");
       }
-      if (row === -1 || col === -1) {
-        return null;
-      }
       document.getElementById(row + "," + col)?.classList.add("selected");
-      return [row, col];
+      return [row, col]
     });
   }
 
-  const selectNext = (dir : string | null) => {
-    setNextSelection(prevNextSelection => {
-      if (prevNextSelection && prevNextSelection[0] !== null && prevNextSelection[1] !== null) {
-        document.getElementById(prevNextSelection[0] + "," + prevNextSelection[1])?.classList.remove("selected-next");
+  const deselectSelected = () => {
+    setSelected((prevSelected) => {
+      if (prevSelected && prevSelected[0] !== null && prevSelected[1] !== null) {
+        document.getElementById(prevSelected[0] + "," + prevSelected[1])?.classList.remove("selected");
       }
-      if (!dir) {
-        setShowInput({ ...showInput, visible: false });
-        return null;
+      return null;
+    });
+  }
+
+  const deselectNextSelection = () => {
+    setNextSelection((prevSelected) => {
+      if (prevSelected && prevSelected[0] !== null && prevSelected[1] !== null) {
+        document.getElementById(prevSelected[0] + "," + prevSelected[1])?.classList.remove("selected-next");
       }
-      if (!selected) return null;
+      document.getElementById("endzone-white")?.classList.remove("selected-next");
+      document.getElementById("endzone-black")?.classList.remove("selected-next");
+      return null;
+    });
+  }
 
-      let nextRow = selected[0];
-      let nextCol = selected[1];
-      if (dir === "u") nextRow -= 1;
-      else if (dir === "l") nextCol -= 1;
-      else if (dir === "d") nextRow += 1;
-      else if (dir === "r") nextCol += 1;
-      else return prevNextSelection;
+  const deselectAll = () => {
+    deselectNextSelection();
+    deselectSelected();
+  }
 
-      if (nextCol < 0 || nextCol >= BOARD_SIZE) return null;
-      
-      if (nextRow === BOARD_SIZE && !gameState.isWhiteMoving) {
+  const isOutOfBounds = (row: number, col: number) => {
+    if (row < 0) return true;
+    if (row >= BOARD_SIZE) return true;
+    if (col < 0) return true;
+    if (col >= BOARD_SIZE) return true;
+    return false;
+  }
+
+  const handleClick = (row: number, col: number) => {
+    if (gameOver !== null) return;
+    if (gameState.isWhiteMoving ? playerColor === "black" : playerColor === "white") throw new Error("Not your turn.");
+
+    // Nothing is selected
+    if (!selected || (selected[0] === -1 && selected[1] === -1)) {
+      if (isOutOfBounds(row, col)) return;
+      select(row, col);
+      const stringifiedBoard = convertBoardToString(gameState);
+      updateGameState(gameId, token, stringifiedBoard, row+","+col);
+    }
+
+    // Something is selected
+    // Selected thing is clicked && is first action (remove all selections)
+    else if (gameState.isFirstAction && selected[0] === row && selected[1] === col) {
+      deselectAll();
+      setShowInput({ ...showInput, visible: false });
+      const stringifiedBoard = convertBoardToString(gameState);
+      updateGameState(gameId, token, stringifiedBoard, null);
+    }
+    // Square adjacent to selected is clicked (select next)
+    else if (isAdjacent(selected[0], selected[1], row, col)) {
+      deselectNextSelection();
+      if (row === BOARD_SIZE && !gameState.isWhiteMoving) {
         document.getElementById("endzone-black")?.classList.add("selected-next");
-      } else if (nextRow === -1 && gameState.isWhiteMoving) {
+      } else if (row === -1 && gameState.isWhiteMoving) {
         document.getElementById("endzone-white")?.classList.add("selected-next");
       } else {
-        document.getElementById(nextRow + "," + nextCol)?.classList.add("selected-next");
+        document.getElementById(row + "," + col)?.classList.add("selected-next");
       }
-      return [nextRow, nextCol];
-    });
+      setNextSelection(() => [row, col]);
+      showInputBox(row, col);
+    }
+    // Something else is clicked
+    else {
+      console.log("Must click adjacent square or deselect.")
+    }
   }
+
+  // ------------------ GAME ACTIONS (MOVE, END TURN, END GAME) ---------------------
 
   const endTurn = (gameState : GameInterface) => {
     gameState.isWhiteMoving = !gameState.isWhiteMoving;
     gameState.piecesRemaining = 1000;
     gameState.isFirstAction = true;
-    select(-1, -1, false);
+    deselectAll();
   }
 
   const endGame = useCallback((isWinnerWhite : boolean | null, isFOFViolation : boolean) => {
@@ -323,8 +357,8 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
         nextBoard[row][col] = makeMoveResponse.origSquareCode;
 
         const isTurnOver = makeMoveResponse.isTurnOver;
-        select(nextRow, nextCol, false);
-        selectNext(null);
+        deselectNextSelection();
+        select(nextRow, nextCol);
 
         let nextGameState : GameInterface = {board: nextBoard,
           whiteInEndzone: endzoneWhite,
@@ -344,8 +378,6 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
 
         setGameState(() => nextGameState);
         const stringifiedBoard = convertBoardToString(nextGameState);
-
-        console.log(stringifiedBoard);
 
         updateGameState(gameId, token, stringifiedBoard, nextSelectedForJSON);
 
@@ -372,10 +404,10 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
       inputRef={inputRef}
       handleInputSubmit={handleInputSubmit}
       handleChange={handleChange}
+      handleClick={handleClick}
       playerColor={playerColor}
       showInstructions={showInstructions}
       toggleInstructions={toggleInstructions}
-      select={select}
       nextSelection={nextSelection}
       gameOver={gameOver}
     />

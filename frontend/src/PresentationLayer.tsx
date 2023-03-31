@@ -20,7 +20,7 @@ export interface PresentationProps {
     playerColor: string;
     showInstructions: boolean;
     toggleInstructions: () => void;
-    select: (row: number, col: number, isClick: boolean) => void;
+    handleClick: (row: number, col: number) => void;
     gameOver: string | null;
 }
 
@@ -39,7 +39,7 @@ export const PresentationLayer: React.FC<PresentationProps> = ({
     playerColor,
     showInstructions,
     toggleInstructions,
-    select,
+    handleClick,
     gameOver,
   }) => {
     return (
@@ -50,7 +50,7 @@ export const PresentationLayer: React.FC<PresentationProps> = ({
               board={currentBoard}
               whiteInEndzone={currentWhiteInEndzone}
               blackInEndzone={currentBlackInEndzone}
-              onSelect={select}
+              onSelect={handleClick}
             />
             <GameInformation
               isWhiteMoving={isWhiteMoving}

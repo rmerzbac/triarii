@@ -10,7 +10,7 @@ const Endzone: FC<EndzoneProps> = (props) => {
     <td
       colSpan={6}
       className="endzone"
-      id={`endzone-{props.color}`}
+      id={"endzone-" + (props.color === "white" ? "black" : "white")}
       style={{
         "background": props.color === "white" ? "#FAF0F0" : "#181818",
         "color": props.color === "white" ? "black" : "white"

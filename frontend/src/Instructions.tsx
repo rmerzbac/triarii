@@ -21,7 +21,8 @@ const Instructions = () => {
         </div>
         <h5>Ending the game</h5>
         <p>A player wins if they get 6 or more pieces in their opponent's endzone. A threefold 
-            repetition is a draw. There is one other special <a href="#fof">"Four or Fewer" condition</a> that can end the game, described below.
+            repetition is a draw. There is one other special <a href="#fof">"Four or Fewer" condition</a> that 
+            can end the game, described below.
         </p>
         <h5>Moves</h5>
         <p>On a player's turn, they can move a stack in one of two ways:</p>
@@ -32,6 +33,8 @@ const Instructions = () => {
         <li>By <b>unstacking</b>:
         <ul><li>The player may make unlimited <b>moves</b>, but at least one piece must remain in each square, 
         including the starting square.</li></ul></li></ol>
+        <p>Once pieces are placed in the endzone, they can never be moved again. (It also follows that 
+            pieces can only be placed in the endzone as the final move in an unstacking.)</p>
         <h5>Pinning</h5>
         <p>Pinning rules:</p>
         <ul><li>A player can <b>pin</b> one of their opponent's stacks using a stack that is at least 

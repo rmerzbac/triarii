@@ -14,6 +14,7 @@
     boardCode: string,
     selected: string | null,
   ) => {
+    console.log("Sending game state to server");
     try {
       await fetch(`http://localhost:3001/game/${gameId}`, {
         method: 'PUT',
