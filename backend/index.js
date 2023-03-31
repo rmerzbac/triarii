@@ -2,8 +2,13 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const app = express();
-app.use(cors());
-const PORT = process.env.PORT || 3001;
+app.use(cors({
+  origin: 'http://localhost:3000', // Replace this with the origin of your client
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
+const PORT = process.env.PORT || 8080;
 const knex = require('knex')(require('./knexfile'));
 
 const jwt = require('jsonwebtoken');

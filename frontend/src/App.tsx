@@ -1,5 +1,5 @@
 import './App.css';
-import React, {useState, useEffect} from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   BrowserRouter as Router,
   Routes,
@@ -10,6 +10,7 @@ import {
 import Title from './Title';
 import Game from './Game';
 import Instructions from './Instructions';
+import { createNewGame, joinGame } from './api';
 
 const Home: React.FC<{ setPlayerColor: (color: string) => void; setToken: (token: string) => void }> = ({ setPlayerColor, setToken }) => {
   const navigate = useNavigate();
@@ -20,38 +21,20 @@ const Home: React.FC<{ setPlayerColor: (color: string) => void; setToken: (token
   
     try {
       // Create a new game
-      const response = await fetch('http://localhost:3001/game', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ boardCode }),
-      });
-  
-      const { id } = await response.json();
+      const id = await createNewGame(boardCode);
       const shareableUrl = `${window.location.origin}/game/${id}`;
       console.log('Shareable URL:', shareableUrl);
-  
+
       // Join the created game
-      const joinResponse = await fetch('http://localhost:3001/join', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ gameId: id}),
-      });
-  
-      const joinData = await joinResponse.json();
+      const joinData = await joinGame(id);
       setPlayerColor(joinData.playerColor);
       setToken(joinData.token);
-  
+
       navigate(`/game/${id}`);
     } catch (error) {
       console.error('Error creating and joining a new game:', error);
     }
   };
-  
-  
 
   return (
     <div>
@@ -68,33 +51,26 @@ const GameWrapper: React.FC<{ playerColor: string; token: string; setPlayerColor
   const { id } = useParams();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const joinGame = async () => {
-      try {
-        const joinResponse = await fetch('http://localhost:3001/join', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ gameId: id, token }),
-        });
+  if (!id) throw new Error("Game ID not found.");
 
-        const joinData = await joinResponse.json();
-        setPlayerColor(joinData.playerColor);
-        setToken(joinData.token);
-      } catch (error) {
-        console.error('Error joining the game:', error);
+  useEffect(() => {
+    const fetchAndJoinGame = async () => {
+      if (!playerColor || !token) {
+        try {
+          const joinData = await joinGame(id, token);
+          setPlayerColor(joinData.playerColor);
+          setToken(joinData.token);
+        } catch (error) {
+          console.error('Error joining the game:', error);
+        }
       }
     };
 
-    if (!playerColor || !token) {
-      joinGame();
-    }
+    fetchAndJoinGame();
   }, [id, navigate, playerColor, setPlayerColor, setToken, token]);
 
   return <Game gameId={id!} playerColor={playerColor!} token={token!} />;
 };
-
 
 const App: React.FC = () => {
   const [playerColor, setPlayerColor] = useState('');
