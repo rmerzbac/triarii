@@ -38,9 +38,11 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
   const [inputData, setInputData] = useState({ value: "" });
   const [showInstructions, setShowInstructions] = useState(false);
   const [gameOver, setGameOver] = useState<string | null>(null)
+  const [endTurnButton, setEndTurnButton] = useState({ visible: false, top: 0, left: 0 });
 
   // ------------------ REFS ---------------------
   const inputRef = useRef<HTMLInputElement>(null);
+  const endTurnButtonRef = useRef<HTMLButtonElement>(null);
   const boardRef = useRef<HTMLDivElement>(null);
 
   // ------------------ EVENT HANDLERS ---------------------
@@ -53,9 +55,7 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
           if (nextSelection) {
             move(movingStackSize);
           }
-          setShowInput({ ...showInput, visible: false });
-          inputRef.current.value = '';
-          setInputData({ ...inputData, value: "" })
+          hideInputBox();
         }
       }
     }
@@ -64,18 +64,7 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
   const handleKeyDown = useCallback((event: KeyboardEvent) => {
     if (event.code === 'Space') {
       event.preventDefault();
-      if (gameState.piecesRemaining === DEFAULT_PIECES_REMAINING) throw new Error("No move made.");
-      deselectAll();
-
-      const nextGameState = _.cloneDeep(gameState);
-      endTurn(nextGameState);
-
-      setGameState(() => nextGameState);
-      const stringifiedBoard = convertBoardToString(nextGameState);
-
-      console.log(stringifiedBoard);
-
-      updateGameState(gameId, token, stringifiedBoard, null);
+      initiateEndTurn();
       return;
     }
 
@@ -105,6 +94,12 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
     }
   };
 
+  const handleEndTurnButton = (event: React.MouseEvent<HTMLButtonElement>) => {
+    initiateEndTurn();
+  }
+
+  // ------------------ SHOW/HIDE ELEMENTS -------------------
+
   const showInputBox = (row: number, col: number) => {
     let square;
     if (row === -1) square = document.getElementById("endzone-white");
@@ -118,6 +113,26 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
       }, 100);
     }
   };
+
+  const showEndTurnButton = (row: number, col: number) => {
+    let square;
+    square = document.getElementById(row + ',' + col);
+    if (square) {
+      const rect = square.getBoundingClientRect();
+      setEndTurnButton({ visible: true, top: rect.bottom, left: rect.right });
+      console.log(rect.bottom + rect.height, rect.right);
+    }
+  }
+
+  const hideEndTurnButton = () => {
+    setEndTurnButton({ ...endTurnButton, visible: false })
+  }
+
+  const hideInputBox = () => {
+    if (inputRef.current) inputRef.current.value = '';
+    setShowInput({ ...showInput, visible: false });
+    setInputData({ ...inputData, value: "" })
+  }
 
   const toggleInstructions = () => {
     setShowInstructions(!showInstructions);
@@ -275,7 +290,7 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
     // Selected thing is clicked && is first action (remove all selections)
     else if (gameState.isFirstAction && selected[0] === row && selected[1] === col) {
       deselectAll();
-      setShowInput({ ...showInput, visible: false });
+      hideInputBox();
       const stringifiedBoard = convertBoardToString(gameState);
       updateGameState(gameId, token, stringifiedBoard, null);
     }
@@ -300,6 +315,23 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
 
   // ------------------ GAME ACTIONS (MOVE, END TURN, END GAME) ---------------------
 
+  const initiateEndTurn = () => {
+    if (gameState.piecesRemaining === DEFAULT_PIECES_REMAINING) throw new Error("No move made.");
+    deselectAll();
+
+    const nextGameState = _.cloneDeep(gameState);
+    endTurn(nextGameState);
+
+    setGameState(() => nextGameState);
+    const stringifiedBoard = convertBoardToString(nextGameState);
+
+    console.log(stringifiedBoard);
+
+    updateGameState(gameId, token, stringifiedBoard, null);
+    hideInputBox();
+    hideEndTurnButton();
+  }
+  
   const endTurn = (gameState : GameInterface) => {
     gameState.isWhiteMoving = !gameState.isWhiteMoving;
     gameState.piecesRemaining = 1000;
@@ -372,6 +404,7 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
           endTurn(nextGameState);
           nextSelectedForJSON = null;
         } else {
+          showEndTurnButton(nextRow, nextCol);
           nextGameState.piecesRemaining = movingStackSize - makeMoveResponse.piecesUsedInMove;
           nextGameState.isFirstAction = false;
         }
@@ -410,6 +443,8 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
       toggleInstructions={toggleInstructions}
       nextSelection={nextSelection}
       gameOver={gameOver}
+      endTurnButton={endTurnButton}
+      handleEndTurnButton={handleEndTurnButton}
     />
   );
 }

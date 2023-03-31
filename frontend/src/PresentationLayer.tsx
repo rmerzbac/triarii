@@ -22,6 +22,8 @@ export interface PresentationProps {
     toggleInstructions: () => void;
     handleClick: (row: number, col: number) => void;
     gameOver: string | null;
+    endTurnButton: { visible: boolean; top: number; left: number };
+    handleEndTurnButton: (event: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
 export const PresentationLayer: React.FC<PresentationProps> = ({
@@ -41,6 +43,8 @@ export const PresentationLayer: React.FC<PresentationProps> = ({
     toggleInstructions,
     handleClick,
     gameOver,
+    endTurnButton,
+    handleEndTurnButton
   }) => {
     return (
       <div className="gameDiv">
@@ -70,6 +74,14 @@ export const PresentationLayer: React.FC<PresentationProps> = ({
                 onChange={handleChange}
                 value={inputData.value}
               />
+            )}
+            {endTurnButton.visible && (
+              <button
+                id="end-turn-button"
+                className="end-turn-button"
+                onClick={handleEndTurnButton}
+                style={{ top: endTurnButton.top - 15, left: endTurnButton.left - 15}}
+              >End turn</button>
             )}
           </div>
         </div>
