@@ -119,7 +119,7 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
     square = document.getElementById(row + ',' + col);
     if (square) {
       const rect = square.getBoundingClientRect();
-      setEndTurnButton({ visible: true, top: rect.bottom, left: rect.right });
+      setEndTurnButton({ visible: true, top: rect.bottom, left: rect.left });
       console.log(rect.bottom + rect.height, rect.right);
     }
   }
