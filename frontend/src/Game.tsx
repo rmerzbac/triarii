@@ -197,9 +197,9 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
     
     select(parseInt(parsedSelected[0], 10), parseInt(parsedSelected[1], 10));
 
-    if (isThreefoldRepetition(allBoards)) {
+    /* if (isThreefoldRepetition(allBoards)) {
       endGame(null, false); // Draw
-    }
+    }*/
 
     if (game.whiteInEndzone >= 6) {
       console.log("White has 6 in endzone");
