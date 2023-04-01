@@ -15,7 +15,7 @@ const Endzone: FC<EndzoneProps> = (props) => {
         "background": props.color === "white" ? "#FAF0F0" : "#181818",
         "color": props.color === "white" ? "black" : "white"
       }}
-    >{props.pieces}</td>
+    >{props.pieces}/6</td>
   );
 };
 
