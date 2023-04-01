@@ -14,15 +14,14 @@ const Instructions = () => {
             feature requests, bugs, or general comments.</p>
         <h5>Overview</h5>
         <div className="image-formatter">
-        <p>Triarii is played on a 6x6 board, with two endzones. Each player has 36 pieces, initially arranged 
+        <p>Triarii is played on a 6x6 board, with two endzones. Each player has 54 pieces, initially arranged 
             in stacks of 6, 4, and 2, as shown on the right.
         </p>
         <img src={startingposition}/>
         </div>
         <h5>Ending the game</h5>
         <p>A player wins if they get 6 or more pieces in their opponent's endzone. A threefold 
-            repetition is a draw. There is one other special <a href="#fof">"Four or Fewer" condition</a> that 
-            can end the game, described below.
+            repetition is a draw.
         </p>
         <h5>Moves</h5>
         <p>On a player's turn, they can move a stack in one of two ways:</p>
@@ -35,23 +34,22 @@ const Instructions = () => {
         including the starting square.</li></ul></li></ol>
         <p>Once pieces are placed in the endzone, they can never be moved again. (It also follows that 
             pieces can only be placed in the endzone as the final move in an unstacking.)</p>
+        
         <h5>Pinning</h5>
-        <p>Pinning rules:</p>
-        <ul><li>A player can <b>pin</b> one of their opponent's stacks using a stack that is at least 
-        <b>double</b> the size of the pinned stack.</li>
+        <ul><li>A player can <b>pin</b> one of their opponent's stacks, depending on the size of both stacks:
+            <ul><li>A stack of size <b>1 - 4</b> can be pinned by a stack that is at least <b>double</b> in size.</li>
+            <li>A stack of size <b>5 - 8</b> can be pinned by a stack that is <b>8 or greater</b>.</li>
+            <li>A stack of size <b>9 - 12</b> can be pinned by a stack that is <b>4 or greater</b>.</li>
+            <li>A stack <b>greater than 12</b> can be pinned by a stack that is <b>1 or greater</b>.</li>
+        </ul>
+        </li>
         <li>Following the turn that a stack is pinned, only <b>one piece</b> is needed to keep it pinned.</li>
         <li>The pinned stack cannot be moved until:
             <ol><li>The other player vacates the square.</li>
             <li>The pinned player pins the pinning stack. The previously pinned pieces now join the rest of 
                 the pinning stack—they do not count toward the number needed to pin the opponent.</li></ol> 
         </li>
-        <li>A stack that is <b>greater than 8 pieces</b> can be pinned by a stack of <b>any size</b>. (Even just one piece!)</li>
         </ul>
-        <h5 id="fof">"Four or Fewer" condition</h5>
-        <p>At any given moment, both players must have at least one stack on the board that has four or fewer pieces,
-            which is directly reachable from the opponent's side. ("Directly" in this case means that it can be reached 
-            without going through another stack.) If at any moment a player violates this condition, their opponent <b>instantly wins</b>.
-        </p>
         <h5>Who were the Triarii?</h5>
         <p>The Triarii were one of the three main infantry types in the Roman Republic's military during 
         the mid-Republican period (4th to 3rd centuries BCE). They were the most experienced and seasoned 
