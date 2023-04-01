@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, ChangeEventHandler} from 'react';
 import _ from 'lodash';
 import PresentationLayer from './PresentationLayer';
-import {makeMove, GameInterface, convertBoardToString, convertStringToBoard, isThreefoldRepetition, isViolatingFourOrFewerCondition} from './gameLogic';
+import {makeMove, GameInterface, convertBoardToString, convertStringToBoard, isThreefoldRepetition} from './gameLogic';
 import { BOARD_SIZE, DEFAULT_PIECES_REMAINING, POLL_REQUEST_RATE } from './constants';
 import {updateGameState, loadGameState} from './api';
 
@@ -207,12 +207,6 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
     }
     if (game.blackInEndzone >= 6) {
       endGame(false, false);
-    }
-    if (isViolatingFourOrFewerCondition(game.board, true)) {
-      endGame(false, true);
-    }
-    if (isViolatingFourOrFewerCondition(game.board, false)) {
-      endGame(true, true);
     }
 
     setGameState(() => game);

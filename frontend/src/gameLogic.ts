@@ -136,11 +136,24 @@ function isPrimaryStackWhite(stackCode: string): boolean {
   return wIndex < bIndex;
 }
 
-function getPiecesUsedInMove(stackerSize: number, stackee: SquareStatus, isWhiteMoving: boolean) : number {
+// v1 - old rules
+function getPiecesUsedInMovev1(stackerSize: number, stackee: SquareStatus, isWhiteMoving: boolean) : number {
   if (isPinning(stackee, isWhiteMoving)) return 1;
   const opponentSize = getStackSize(stackee, !isWhiteMoving);
   if (opponentSize === 0) return 1; // no pieces in square
   if (opponentSize > 8) return 1; // oversized stacks can always be pinned by one piece
+  if (opponentSize <= stackerSize / 2) return opponentSize * 2;
+  else throw new Error("Opponent cannot be stacked");
+}
+
+// v2
+function getPiecesUsedInMove(stackerSize: number, stackee: SquareStatus, isWhiteMoving: boolean) : number {
+  if (isPinning(stackee, isWhiteMoving)) return 1;
+  const opponentSize = getStackSize(stackee, !isWhiteMoving);
+  if (opponentSize === 0) return 1; // no pieces in square
+  if (opponentSize > 12) return 1; // >12 stacks can always be pinned by one piece
+  if (opponentSize > 8) return 4; // >8 stacks can always be pinned by 4 pieces
+  if (opponentSize > 4) return 8; // >4 stacks can always be pinned by 8 pieces
   if (opponentSize <= stackerSize / 2) return opponentSize * 2;
   else throw new Error("Opponent cannot be stacked");
 }
@@ -228,6 +241,8 @@ function conditionalAddToQueue(row: number, col: number, stack: [number, number]
   stack.push([row, col]);
 }
 
+/*
+// v1 - Old rules
 export function isViolatingFourOrFewerCondition(board: (string | null)[][], isWhite: boolean) : boolean {
   const convertedBoard = convertBoardToBooleans(board, !isWhite);
   
@@ -252,7 +267,7 @@ export function isViolatingFourOrFewerCondition(board: (string | null)[][], isWh
   }
 
   return true;
-}
+}*/
 
 export const isThreefoldRepetition = (allBoards: GameInterface[]): boolean => {
   if (allBoards.length < 5) return false;
