@@ -147,6 +147,8 @@ td.selected-next {
   margin-bottom: 50px;
   width: 60%;
   left: 20%;
+  height: 80%;
+  overflow-y: auto;
 }
 .gameDiv > .instructions {
   z-index: 32;
