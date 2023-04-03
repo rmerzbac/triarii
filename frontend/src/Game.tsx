@@ -17,12 +17,12 @@ const Game = ({gameId, playerColor, token}: GameProps) => {
   const [gameState, setGameState] = useState(
     {
       board: [
-        ['6b', '6b', '6b', '6b', '6b', '6b'],
+        [null, '6b', null, '6b', null, '6b'],
         ['4b', null, '4b', null, '4b', null],
-        [null, '2b', null, '2b', null, '2b'],
-        ['2w', null, '2w', null, '2w', null],
+        [null, '4b', null, '4b', null, '4b'],
+        ['4w', null, '4w', null, '4w', null],
         [null, '4w', null, '4w', null, '4w'],
-        ['6w', '6w', '6w', '6w', '6w', '6w'],
+        ['6w', null, '6w', null, '6w', null],
       ],
       whiteInEndzone: 0,
       blackInEndzone: 0,

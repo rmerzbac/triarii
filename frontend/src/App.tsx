@@ -16,7 +16,7 @@ const Home: React.FC<{ setPlayerColor: (color: string) => void; setToken: (token
   const navigate = useNavigate();
 
   const handleCreateNewGame = async (e: React.MouseEvent<HTMLButtonElement>) => {
-    const boardCode = '//6b/6b/6b/6b/6b/6b//4b/_/4b/_/4b/_//_/2b/_/2b/_/2b//2w/_/2w/_/2w/_//_/4w/_/4w/_/4w//6w/6w/6w/6w/6w/6w//0,0,true,1000,true//';
+    const boardCode = '//_/6b/_/6b/_/6b//4b/_/4b/_/4b/_//_/4b/_/4b/_/4b//4w/_/4w/_/4w/_//_/4w/_/4w/_/4w//6w/_/6w/_/6w/_//0,0,true,1000,true//';
     // const boardCode = '//25w/6b/_/6b/_/6b//4b/_/4b/_/4b/_//_/2b/_/2b/_/2b//2w/_/2w/_/2w/_//_/4w/_/4w/_/4w//6w/_/6w/_/6w/25b//0,0,true,1000,true//';
   
     try {
