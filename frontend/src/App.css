@@ -116,7 +116,7 @@ td.selected-next {
   padding: 10px;
   line-height: 1.5;
 }
-@media screen and (min-aspect-ratio: 1.4) {
+@media screen and (-webkit-min-device-aspect-ratio: 1.4) {
   .game-information {
     display: block;
   }
