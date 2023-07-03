@@ -14,8 +14,8 @@ const Instructions = () => {
             feature requests, bugs, or general comments.</p>
         <h5>Overview</h5>
         <div className="image-formatter">
-        <p>Triarii is played on a 6x6 board, with two endzones. Each player has 54 pieces, initially arranged 
-            in stacks of 6, 4, and 2, as shown on the right.
+        <p>Triarii is played on a 6x6 board, with two endzones. Each player has 42 pieces, initially arranged 
+            in stacks of 4 and 6, as shown on the right.
         </p>
         <img src={startingposition}/>
         </div>
